@@ -16,9 +16,21 @@ scripts/build-app.sh          # signed, sandboxed app for local use → build/CH
 scripts/archive.sh            # App Store archive + signed .pkg → build/export/
 scripts/archive.sh --upload   # archive and upload to App Store Connect
 ```
-Bump `MARKETING_VERSION` / `CURRENT_PROJECT_VERSION` in `project.yml` for every new upload.
+## Releasing an update
+1. In `project.yml`, raise `CURRENT_PROJECT_VERSION` by 1 (**every** upload — App Store Connect rejects
+   a reused build number). Raise `MARKETING_VERSION` (e.g. 1.0.0 → 1.0.1) when the update ships to users.
+2. Add a row to the upload history below.
+3. `swift test`, then `scripts/build-app.sh` and try the app.
+4. `scripts/archive.sh --upload`.
+5. App Store Connect: new version → 此版本的新增內容 (release notes) → pick the build → 提交審查.
+6. Commit `project.yml` + this file, tag `v<MARKETING_VERSION>`, push.
 
-## Steps only you can do
+### Upload history
+| Date | Version | Build | Notes |
+|---|---|---|---|
+| 2026-10-01 | 1.0.0 | 1 | First upload (sky-blue icon) |
+
+## Steps only you can do (first release)
 1. **Create the app record** — appstoreconnect.apple.com → 我的 App → ＋ → 新增 App
    - 平台 macOS · 名稱 `CHM 閱讀器` · 主要語言 繁體中文 · 套件 ID `com.yuming.chmreader` · SKU `chmreader-001`
 2. **Upload**: `scripts/archive.sh --upload` (or open `build/CHMReader.xcarchive` in Xcode Organizer → Distribute).
