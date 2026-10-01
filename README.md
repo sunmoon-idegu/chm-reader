@@ -67,6 +67,9 @@ The Xcode project is generated from `project.yml`; set `DEVELOPMENT_TEAM` to you
 
 ## 授權 License
 
+本專案原始碼採 [MIT 授權](LICENSE)。App 名稱「CHM 閱讀器」、圖示與 App Store 素材不在授權範圍內，請勿用於其他發佈的 App。
+This project's source code is under the [MIT License](LICENSE). The app name, icon and App Store assets are not licensed for reuse in other distributed apps.
+
 本 App 使用 [CHMLib](https://github.com/jedwing/CHMLib)（© Jed Wing），採 GNU LGPL 2.1 授權，
 以未經修改、可替換的動態函式庫 `CCHMLib.framework` 隨附；授權全文見 `Sources/CCHMLib/COPYING`。
 
