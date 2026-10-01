@@ -4,7 +4,7 @@ Copyright (c) 2026 Yuming Lu
 Third-party code
 
 Sources/CCHMLib contains CHMLib 0.40, Copyright (C) Jed Wing, which is NOT
-covered by the MIT License above. It is licensed under the GNU Lesser General
+covered by the MIT License in LICENSE. It is licensed under the GNU Lesser General
 Public License, version 2.1; see Sources/CCHMLib/COPYING.
 
 The name "CHM 閱讀器", the app icon, and the App Store listing assets are not
