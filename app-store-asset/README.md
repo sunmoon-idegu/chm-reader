@@ -11,6 +11,6 @@
 | 支援網址 | https://sunmoon-idegu.github.io/chm-reader/ | |
 | 隱私權政策網址 | https://sunmoon-idegu.github.io/chm-reader/privacy.html | |
 
-其他欄位：類別「書籍」（次要「參考」）、App 隱私權選「不收集資料」、審查備註見 `docs/APP_STORE.md`。
+其他欄位：類別「書籍」（次要「參考」）、App 隱私權選「不收集資料」、審查備註見 `dev-docs/APP_STORE.md`。
 
 截圖使用的書為《瑜伽師地論筆錄》；若該書內容不便公開展示，可改用其他可公開的 CHM 重新產生。

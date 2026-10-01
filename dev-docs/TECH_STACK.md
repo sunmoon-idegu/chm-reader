@@ -91,7 +91,8 @@ chm-reader/
 ├── Tests/CHMKitTests/
 ├── Support/Info.plist    bundle metadata + .chm document type
 ├── scripts/build-app.sh  builds "CHM Reader.app" into ./build
-└── docs/TECH_STACK.md
+├── docs/                 website on GitHub Pages: support + privacy policy
+└── dev-docs/             tech stack + App Store notes
 ```
 
 ## Build & run
@@ -99,7 +100,7 @@ chm-reader/
 ```sh
 swift test                  # unit tests
 scripts/build-app.sh        # → build/CHM Reader.app (signed, sandboxed)
-scripts/archive.sh          # App Store .pkg → build/export/ (see docs/APP_STORE.md)
+scripts/archive.sh          # App Store .pkg → build/export/ (see dev-docs/APP_STORE.md)
 ```
 
 ## Not now (possible later)
