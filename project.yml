@@ -1,0 +1,86 @@
+# Xcode project spec. Regenerate with: xcodegen generate
+name: CHMReader
+options:
+  bundleIdPrefix: com.yuming
+  deploymentTarget:
+    macOS: "14.0"
+  createIntermediateGroups: true
+
+settings:
+  base:
+    DEVELOPMENT_TEAM: LV99JJMWBN
+    MARKETING_VERSION: "1.0.0"
+    CURRENT_PROJECT_VERSION: "1"
+    SWIFT_VERSION: "5.0"
+    MACOSX_DEPLOYMENT_TARGET: "14.0"
+    CODE_SIGN_STYLE: Automatic
+
+targets:
+  # CHMLib (LGPL-2.1) stays a separate, replaceable dynamic framework.
+  CCHMLib:
+    type: framework
+    platform: macOS
+    sources:
+      - path: Sources/CCHMLib
+        excludes: ["include", "COPYING", "AUTHORS"]
+      - path: Sources/CCHMLib/include
+        buildPhase: headers
+        headerVisibility: public
+    settings:
+      base:
+        PRODUCT_NAME: CCHMLib
+        PRODUCT_BUNDLE_IDENTIFIER: com.yuming.chmreader.cchmlib
+        DEFINES_MODULE: YES
+        GENERATE_INFOPLIST_FILE: YES
+        SKIP_INSTALL: YES
+        GCC_PREPROCESSOR_DEFINITIONS: ["$(inherited)", "CHM_MT=1", "CHM_USE_PREAD=1"]
+        GCC_WARN_INHIBIT_ALL_WARNINGS: YES
+        CLANG_WARN_QUOTED_INCLUDE_IN_FRAMEWORK_HEADER: NO
+
+  CHMKit:
+    type: framework
+    platform: macOS
+    sources: [Sources/CHMKit]
+    dependencies:
+      - target: CCHMLib
+        embed: false
+    settings:
+      base:
+        PRODUCT_NAME: CHMKit
+        PRODUCT_BUNDLE_IDENTIFIER: com.yuming.chmreader.chmkit
+        GENERATE_INFOPLIST_FILE: YES
+        SKIP_INSTALL: YES
+
+  CHMReader:
+    type: application
+    platform: macOS
+    sources:
+      - path: Sources/CHMReader
+      - path: Support/Assets.xcassets
+      - path: Support/PrivacyInfo.xcprivacy
+      - path: Support/Credits.html
+      - path: Support/CHMLib-LICENSE.txt
+      - path: Support/container-migration.plist
+    dependencies:
+      - target: CHMKit
+        embed: true
+      - target: CCHMLib
+        embed: true
+    settings:
+      base:
+        PRODUCT_NAME: CHM Reader
+        PRODUCT_BUNDLE_IDENTIFIER: com.yuming.chmreader
+        INFOPLIST_FILE: Support/Info.plist
+        CODE_SIGN_ENTITLEMENTS: Support/CHMReader.entitlements
+        ENABLE_HARDENED_RUNTIME: YES
+        ASSETCATALOG_COMPILER_APPICON_NAME: AppIcon
+        LD_RUNPATH_SEARCH_PATHS: ["$(inherited)", "@executable_path/../Frameworks"]
+        COMBINE_HIDPI_IMAGES: YES
+
+schemes:
+  CHMReader:
+    build:
+      targets:
+        CHMReader: all
+    archive:
+      config: Release

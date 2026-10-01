@@ -1,0 +1,114 @@
+import AppKit
+import SwiftData
+import SwiftUI
+import UniformTypeIdentifiers
+
+extension UTType {
+    static let chm = UTType(filenameExtension: "chm") ?? .data
+}
+
+final class AppDelegate: NSObject, NSApplicationDelegate {
+    func applicationWillFinishLaunching(_ notification: Notification) {
+        // Always start at the welcome screen instead of restoring the last window and its book.
+        UserDefaults.standard.set(false, forKey: "NSQuitAlwaysKeepsWindows")
+    }
+
+    func applicationDidFinishLaunching(_ notification: Notification) {
+        // Needed when launched as a bare executable (`swift run`) rather than from the .app bundle.
+        NSApp.setActivationPolicy(.regular)
+        NSApp.activate(ignoringOtherApps: true)
+    }
+
+    func applicationShouldTerminateAfterLastWindowClosed(_ sender: NSApplication) -> Bool { true }
+}
+
+@main
+struct CHMReaderApp: App {
+    @NSApplicationDelegateAdaptor(AppDelegate.self) private var appDelegate
+
+    var body: some Scene {
+        WindowGroup("CHM Reader", for: BookTarget.self) { $target in
+            RootView(target: $target)
+                .frame(minWidth: 760, minHeight: 520)
+                .background(WindowTabbingConfigurator())
+        }
+        .modelContainer(AnnotationStore.container)
+        .commands { ReaderCommands() }
+
+        Settings {
+            TypographyPanel()
+                .frame(width: 380)
+                .padding(20)
+        }
+    }
+}
+
+struct ReaderCommands: Commands {
+    @Environment(\.openWindow) private var openWindow
+    @FocusedObject private var reader: ReaderController?
+    @AppStorage(Pref.fontSize) private var fontSize: Double = 20
+
+    var body: some Commands {
+        CommandGroup(replacing: .newItem) {
+            Button("開啟…") {
+                if let url = RecentBooks.choose() { openWindow(value: BookTarget(url: url)) }
+            }
+            .keyboardShortcut("o")
+            Button("新分頁") {
+                if let reader { TabOpener.openTab(BookTarget(url: reader.book.url, page: reader.book.defaultTopic), from: reader.webView.window, using: openWindow) }
+            }
+            .keyboardShortcut("t")
+            .disabled(reader == nil)
+        }
+        CommandMenu("閱讀") {
+            Button("首頁") { reader?.goHome() }
+                .keyboardShortcut("h", modifiers: [.command, .shift])
+                .disabled(reader == nil)
+            Divider()
+            Button("放大字級") { fontSize = min(fontSize + 1, 40) }
+                .keyboardShortcut("=")
+            Button("縮小字級") { fontSize = max(fontSize - 1, 12) }
+                .keyboardShortcut("-")
+            Button("預設字級") { fontSize = 20 }
+                .keyboardShortcut("0")
+            Divider()
+            Button("螢光標記") { reader?.highlightSelection() }
+                .keyboardShortcut("h", modifiers: [.command, .option])
+                .disabled(!(reader?.hasSelection ?? false))
+        }
+    }
+}
+
+/// Recently opened books, stored as security-scoped bookmarks so the sandboxed app can reopen them.
+enum RecentBooks {
+    static let key = "recentBookmarks"
+
+    static var urls: [URL] {
+        (UserDefaults.standard.array(forKey: key) as? [Data] ?? []).compactMap { data in
+            var stale = false
+            guard let url = try? URL(resolvingBookmarkData: data, options: .withSecurityScope, bookmarkDataIsStale: &stale),
+                  url.startAccessingSecurityScopedResource() || FileManager.default.isReadableFile(atPath: url.path),
+                  FileManager.default.fileExists(atPath: url.path) else { return nil }
+            return url
+        }
+    }
+
+    static func add(_ url: URL) {
+        guard let data = try? url.bookmarkData(options: [.withSecurityScope, .securityScopeAllowOnlyReadAccess]) else { return }
+        var list = (UserDefaults.standard.array(forKey: key) as? [Data] ?? []).filter { existing in
+            var stale = false
+            let resolved = try? URL(resolvingBookmarkData: existing, options: [.withSecurityScope, .withoutUI], bookmarkDataIsStale: &stale)
+            return resolved?.standardizedFileURL != url.standardizedFileURL
+        }
+        list.insert(data, at: 0)
+        UserDefaults.standard.set(Array(list.prefix(12)), forKey: key)
+    }
+
+    @MainActor static func choose() -> URL? {
+        let panel = NSOpenPanel()
+        panel.allowedContentTypes = [.chm]
+        panel.allowsMultipleSelection = false
+        panel.message = "選擇要閱讀的 CHM 檔案"
+        return panel.runModal() == .OK ? panel.url : nil
+    }
+}

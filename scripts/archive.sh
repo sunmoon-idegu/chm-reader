@@ -1,0 +1,22 @@
+#!/bin/zsh
+# Archives for the Mac App Store and exports a signed .pkg into ./build/export.
+# Pass --upload to send it straight to App Store Connect instead.
+set -euo pipefail
+cd "$(dirname "$0")/.."
+xcodegen generate --quiet
+DEST=export
+[[ "${1:-}" == "--upload" ]] && DEST=upload
+xcodebuild -project CHMReader.xcodeproj -scheme CHMReader -configuration Release \
+  -archivePath build/CHMReader.xcarchive -allowProvisioningUpdates -destination "generic/platform=macOS" archive | grep -E "error:|ARCHIVE" || true
+cat > build/ExportOptions.plist <<PLIST
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0"><dict>
+  <key>method</key><string>app-store-connect</string>
+  <key>teamID</key><string>LV99JJMWBN</string>
+  <key>signingStyle</key><string>automatic</string>
+  <key>destination</key><string>$DEST</string>
+</dict></plist>
+PLIST
+xcodebuild -exportArchive -archivePath build/CHMReader.xcarchive -exportPath build/export \
+  -exportOptionsPlist build/ExportOptions.plist -allowProvisioningUpdates
