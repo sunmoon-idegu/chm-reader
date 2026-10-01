@@ -8,8 +8,8 @@
 | 關鍵字 | `3-關鍵字.txt` | 100 字元，逗號分隔 |
 | 版權 | `4-版權.txt` | |
 | App 圖示 | `app-icon-1024.png` | 已內建在 App 中，上傳建置版本後自動帶入 |
-| 支援網址 | https://sunmoon-idegu.github.io/chm-reader-privacy/ | |
-| 隱私權政策網址 | https://sunmoon-idegu.github.io/chm-reader-privacy/privacy.html | |
+| 支援網址 | https://sunmoon-idegu.github.io/chm-reader/ | |
+| 隱私權政策網址 | https://sunmoon-idegu.github.io/chm-reader/privacy.html | |
 
 其他欄位：類別「書籍」（次要「參考」）、App 隱私權選「不收集資料」、審查備註見 `docs/APP_STORE.md`。
 
