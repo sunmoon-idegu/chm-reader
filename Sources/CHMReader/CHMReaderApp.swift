@@ -45,6 +45,7 @@ struct CHMReaderApp: App {
 
 struct ReaderCommands: Commands {
     @Environment(\.openWindow) private var openWindow
+    @FocusedValue(\.openBook) private var openBook
     @FocusedObject private var chmReader: ReaderController?
     @FocusedObject private var pdfReader: PDFReaderController?
 
@@ -56,7 +57,8 @@ struct ReaderCommands: Commands {
     var body: some Commands {
         CommandGroup(replacing: .newItem) {
             Button("開啟…") {
-                if let url = RecentBooks.choose() { openWindow(value: BookTarget(url: url)) }
+                guard let url = RecentBooks.choose() else { return }
+                if let openBook { openBook(url) } else { openWindow(value: BookTarget(url: url)) }
             }
             .keyboardShortcut("o")
             Button("新分頁") {

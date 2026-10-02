@@ -49,13 +49,23 @@ struct RootView: View {
             }
         }
         .task(id: target?.url) { await load() }
-        .onOpenURL { incoming in
-            if target == nil { target = BookTarget(url: incoming) } else { openWindow(value: BookTarget(url: incoming)) }
-        }
+        // Route files opened from Finder to an existing window (which adds a tab) instead of a new window.
+        .handlesExternalEvents(preferring: ["*"], allowing: ["*"])
+        .onOpenURL(perform: openBook)
+        .focusedSceneValue(\.openBook, openBook)
         .alert("無法開啟", isPresented: Binding(get: { error != nil }, set: { if !$0 { error = nil } })) {
             Button("好") { target = nil }
         } message: {
             Text(error ?? "")
+        }
+    }
+
+    /// An empty (welcome) window loads the book itself; otherwise the book opens as a new tab of this window.
+    private func openBook(_ url: URL) {
+        if target == nil {
+            target = BookTarget(url: url)
+        } else {
+            TabOpener.openTab(BookTarget(url: url), from: nil, using: openWindow)
         }
     }
 
