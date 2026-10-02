@@ -6,8 +6,17 @@ cd "$(dirname "$0")/.."
 xcodegen generate --quiet
 DEST=export
 [[ "${1:-}" == "--upload" ]] && DEST=upload
-xcodebuild -project CHMReader.xcodeproj -scheme CHMReader -configuration Release \
-  -archivePath build/CHMReader.xcarchive -allowProvisioningUpdates -destination "generic/platform=macOS" archive | grep -E "error:|ARCHIVE" || true
+mkdir -p build
+# Never export or upload a stale archive from an earlier run.
+rm -rf build/CHMReader.xcarchive build/export
+if ! xcodebuild -project CHMReader.xcodeproj -scheme CHMReader -configuration Release \
+    -archivePath build/CHMReader.xcarchive -allowProvisioningUpdates -destination "generic/platform=macOS" \
+    archive > build/archive.log 2>&1; then
+  grep -E "error:" build/archive.log || tail -30 build/archive.log
+  echo "ARCHIVE FAILED (full log: build/archive.log)"
+  exit 1
+fi
+echo "Archived $(git rev-parse --abbrev-ref HEAD) @ $(git rev-parse --short HEAD)"
 cat > build/ExportOptions.plist <<PLIST
 <?xml version="1.0" encoding="UTF-8"?>
 <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
