@@ -3,22 +3,28 @@ import SwiftUI
 
 struct TypographyPanel: View {
     private var prefs = ReadingPrefs()
+    /// Fixed-layout documents (PDF) can only change the background.
+    private let themeOnly: Bool
+
+    init(themeOnly: Bool = false) { self.themeOnly = themeOnly }
 
     var body: some View {
         VStack(alignment: .leading, spacing: 18) {
-            VStack(alignment: .leading, spacing: 8) {
-                SectionTitle("字型")
-                Picker("字型", selection: prefs.$font) {
-                    ForEach(ReaderFont.allCases) { Text($0.label).tag($0) }
+            if !themeOnly {
+                VStack(alignment: .leading, spacing: 8) {
+                    SectionTitle("字型")
+                    Picker("字型", selection: prefs.$font) {
+                        ForEach(ReaderFont.allCases) { Text($0.label).tag($0) }
+                    }
+                    .pickerStyle(.segmented)
+                    .labelsHidden()
                 }
-                .pickerStyle(.segmented)
-                .labelsHidden()
-            }
 
-            SliderRow(title: "字級", value: prefs.$fontSize, range: 12...40, step: 1) { "\(Int($0)) pt" }
-            SliderRow(title: "行高", value: prefs.$lineHeight, range: 1.2...3.0, step: 0.1) { String(format: "%.1f 倍", $0) }
-            SliderRow(title: "段距", value: prefs.$paragraphSpacing, range: 0...3, step: 0.1) { String(format: "%.1f 行", $0) }
-            SliderRow(title: "版面寬度", value: prefs.$pageWidth, range: 24...80, step: 2) { "\(Int($0)) 字" }
+                SliderRow(title: "字級", value: prefs.$fontSize, range: 12...40, step: 1) { "\(Int($0)) pt" }
+                SliderRow(title: "行高", value: prefs.$lineHeight, range: 1.2...3.0, step: 0.1) { String(format: "%.1f 倍", $0) }
+                SliderRow(title: "段距", value: prefs.$paragraphSpacing, range: 0...3, step: 0.1) { String(format: "%.1f 行", $0) }
+                SliderRow(title: "版面寬度", value: prefs.$pageWidth, range: 24...80, step: 2) { "\(Int($0)) 字" }
+            }
 
             VStack(alignment: .leading, spacing: 8) {
                 SectionTitle("背景")

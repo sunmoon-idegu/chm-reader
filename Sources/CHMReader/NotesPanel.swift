@@ -2,15 +2,15 @@ import SwiftData
 import SwiftUI
 
 /// Right panel: note cards for this page (or the whole book). Click a card to edit it in place.
-struct NotesPanel: View {
-    @ObservedObject var reader: ReaderController
+struct NotesPanel<R: ReaderModel>: View {
+    @ObservedObject var reader: R
     private var prefs = ReadingPrefs()
     @AppStorage("notes.wholeBook") private var wholeBook = false
     @Query private var all: [Annotation]
 
-    init(reader: ReaderController) {
+    init(reader: R) {
         self.reader = reader
-        let key = reader.book.key
+        let key = reader.bookKey
         _all = Query(
             filter: #Predicate<Annotation> { $0.bookKey == key },
             sort: [SortDescriptor(\.pagePath), SortDescriptor(\.start)])
@@ -63,7 +63,7 @@ struct NotesPanel: View {
                     Text("全書共 \(all.count) 則").font(.caption).foregroundStyle(palette.secondary)
                     Spacer()
                     Button("匯出 Markdown…") {
-                        NotesExporter.export(bookTitle: reader.book.title, annotations: all)
+                        NotesExporter.export(bookTitle: reader.bookTitle, annotations: all)
                     }
                     .buttonStyle(.borderless)
                     .font(.caption)
@@ -142,9 +142,9 @@ struct NotesPanel: View {
     }
 }
 
-private struct NoteCard: View {
+private struct NoteCard<R: ReaderModel>: View {
     @Bindable var annotation: Annotation
-    let reader: ReaderController
+    let reader: R
     let palette: ChromePalette
     let isSelected: Bool
     @State private var hovering = false

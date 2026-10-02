@@ -2,25 +2,25 @@ import CHMKit
 import SwiftUI
 
 /// Left panel: the book's table of contents (plus its keyword index when the book has one).
-struct SidebarView: View {
-    @ObservedObject var reader: ReaderController
+struct SidebarView<R: ReaderModel>: View {
+    @ObservedObject var reader: R
     private var prefs = ReadingPrefs()
     @State private var showIndex = false
     @State private var query = ""
 
-    init(reader: ReaderController) { self.reader = reader }
+    init(reader: R) { self.reader = reader }
 
     var body: some View {
         let palette = ChromePalette(prefs.style)
         VStack(alignment: .leading, spacing: 0) {
             VStack(alignment: .leading, spacing: 10) {
-                Text(reader.book.title)
+                Text(reader.bookTitle)
                     .font(.system(size: 13, weight: .semibold))
                     .foregroundStyle(palette.text)
                     .lineLimit(2)
                     .lineSpacing(2)
 
-                if !reader.book.index.isEmpty {
+                if !reader.keywordIndex.isEmpty {
                     Picker("", selection: $showIndex) {
                         Text("目錄").tag(false)
                         Text("索引").tag(true)
@@ -38,11 +38,11 @@ struct SidebarView: View {
             Rectangle().fill(palette.separator).frame(height: 1)
 
             if showIndex {
-                FlatEntries(reader: reader, rows: filtered(reader.book.index), palette: palette)
+                FlatEntries(reader: reader, rows: filtered(reader.keywordIndex), palette: palette)
             } else if query.isEmpty {
                 TOCTree(reader: reader, palette: palette)
             } else {
-                FlatEntries(reader: reader, rows: filtered(reader.book.toc), palette: palette)
+                FlatEntries(reader: reader, rows: filtered(reader.toc), palette: palette)
             }
         }
         .background(palette.background)
@@ -83,8 +83,8 @@ struct SearchField: View {
     }
 }
 
-private struct TOCTree: View {
-    @ObservedObject var reader: ReaderController
+private struct TOCTree<R: ReaderModel>: View {
+    @ObservedObject var reader: R
     let palette: ChromePalette
     @State private var expanded: Set<Int> = []
 
@@ -118,7 +118,7 @@ private struct TOCTree: View {
                 if expanded.contains(e.id) { walk(e.children, depth + 1) }
             }
         }
-        walk(reader.book.toc, 0)
+        walk(reader.toc, 0)
         return rows
     }
 
@@ -134,7 +134,7 @@ private struct TOCTree: View {
     }
 
     private func revealCurrent(_ proxy: ScrollViewProxy, animated: Bool) {
-        guard let path = ancestry(in: reader.book.toc), let target = path.last else { return }
+        guard let path = ancestry(in: reader.toc), let target = path.last else { return }
         expanded.formUnion(path.dropLast().map(\.id))
         DispatchQueue.main.async {
             if animated {
@@ -154,8 +154,8 @@ private struct TOCTree: View {
     }
 }
 
-private struct FlatEntries: View {
-    @ObservedObject var reader: ReaderController
+private struct FlatEntries<R: ReaderModel>: View {
+    @ObservedObject var reader: R
     let rows: [(entry: SitemapEntry, depth: Int)]
     let palette: ChromePalette
 
@@ -181,14 +181,14 @@ private struct FlatEntries: View {
     }
 }
 
-private struct EntryRow: View {
+private struct EntryRow<R: ReaderModel>: View {
     let entry: SitemapEntry
     let depth: Int
     let palette: ChromePalette
     let isCurrent: Bool
     let isExpanded: Bool?
     let onToggle: () -> Void
-    let reader: ReaderController
+    let reader: R
     @State private var hovering = false
 
     var body: some View {

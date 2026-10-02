@@ -45,8 +45,13 @@ struct CHMReaderApp: App {
 
 struct ReaderCommands: Commands {
     @Environment(\.openWindow) private var openWindow
-    @FocusedObject private var reader: ReaderController?
-    @AppStorage(Pref.fontSize) private var fontSize: Double = 20
+    @FocusedObject private var chmReader: ReaderController?
+    @FocusedObject private var pdfReader: PDFReaderController?
+
+    private var reader: (any ReaderModel)? {
+        if let chmReader { return chmReader }
+        return pdfReader
+    }
 
     var body: some Commands {
         CommandGroup(replacing: .newItem) {
@@ -55,7 +60,7 @@ struct ReaderCommands: Commands {
             }
             .keyboardShortcut("o")
             Button("新分頁") {
-                if let reader { TabOpener.openTab(BookTarget(url: reader.book.url, page: reader.book.defaultTopic), from: reader.webView.window, using: openWindow) }
+                if let reader { TabOpener.openTab(BookTarget(url: reader.bookURL, page: reader.homePage), from: reader.contentView.window, using: openWindow) }
             }
             .keyboardShortcut("t")
             .disabled(reader == nil)
@@ -65,12 +70,15 @@ struct ReaderCommands: Commands {
                 .keyboardShortcut("h", modifiers: [.command, .shift])
                 .disabled(reader == nil)
             Divider()
-            Button("放大字級") { fontSize = min(fontSize + 1, 40) }
+            Button(reader?.isReflowable == false ? "放大" : "放大字級") { reader?.zoom(1) }
                 .keyboardShortcut("=")
-            Button("縮小字級") { fontSize = max(fontSize - 1, 12) }
+                .disabled(reader == nil)
+            Button(reader?.isReflowable == false ? "縮小" : "縮小字級") { reader?.zoom(-1) }
                 .keyboardShortcut("-")
-            Button("預設字級") { fontSize = 20 }
+                .disabled(reader == nil)
+            Button(reader?.isReflowable == false ? "符合視窗大小" : "預設字級") { reader?.zoom(0) }
                 .keyboardShortcut("0")
+                .disabled(reader == nil)
             Divider()
             Button("螢光標記") { reader?.highlightSelection() }
                 .keyboardShortcut("h", modifiers: [.command, .option])
@@ -106,9 +114,9 @@ enum RecentBooks {
 
     @MainActor static func choose() -> URL? {
         let panel = NSOpenPanel()
-        panel.allowedContentTypes = [.chm]
+        panel.allowedContentTypes = [.chm, .pdf]
         panel.allowsMultipleSelection = false
-        panel.message = "選擇要閱讀的 CHM 檔案"
+        panel.message = "選擇要閱讀的 CHM 或 PDF 檔案"
         return panel.runModal() == .OK ? panel.url : nil
     }
 }

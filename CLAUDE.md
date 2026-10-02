@@ -6,7 +6,7 @@ App Store details, listing text and upload history: `dev-docs/APP_STORE.md`.
 ## Layout
 - `Sources/CCHMLib` — vendored CHMLib (LGPL-2.1). Must stay an unmodified, separate dynamic framework.
 - `Sources/CHMKit` — CHM parsing, sitemap/#TOPICS TOC, Big5/CP950 decoding (unit-tested).
-- `Sources/CHMReader` — the app.
+- `Sources/CHMReader` — the app. `ReaderModel` is the protocol shared by `ReaderController` (CHM/WebKit) and `PDFReaderController` (PDFKit); window chrome is generic over it.
 - `project.yml` — XcodeGen spec (the `.xcodeproj` is generated and git-ignored). `Package.swift` is only for `swift test`.
 - `docs/` — public website on GitHub Pages (support + privacy policy URLs used in the listing). Must stay named `docs/`: built-in Pages hosting only serves `/` or `/docs`, and the user does not want GitHub Actions.
 - `app-store-asset/` — listing text, screenshots (2560×1600), icon. `scripts/make-icon.swift` draws the icon.

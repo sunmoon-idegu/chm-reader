@@ -4,8 +4,8 @@ import WebKit
 
 /// Three-pane layout (contents | page | note) on AppKit's NSSplitViewController so panels
 /// collapse with the system's smooth animation; SwiftUI can't animate the WKWebView's frame.
-struct ReaderSplitView: NSViewControllerRepresentable {
-    let reader: ReaderController
+struct ReaderSplitView<R: ReaderModel>: NSViewControllerRepresentable {
+    let reader: R
     var showLeft: Bool
     var showRight: Bool
 
@@ -22,7 +22,7 @@ struct ReaderSplitView: NSViewControllerRepresentable {
         left.isCollapsed = !showLeft
 
         let pageController = NSViewController()
-        pageController.view = reader.webView
+        pageController.view = reader.contentView
         let center = NSSplitViewItem(viewController: pageController)
         center.minimumThickness = 360
 

@@ -7,6 +7,13 @@ public struct SitemapEntry: Identifiable, Hashable, Sendable {
     public var local: String?
     public var children: [SitemapEntry]
 
+    public init(id: Int, name: String, local: String?, children: [SitemapEntry]) {
+        self.id = id
+        self.name = name
+        self.local = local
+        self.children = children
+    }
+
     public var childrenOrNil: [SitemapEntry]? { children.isEmpty ? nil : children }
 
     /// Depth-first flattening with depth, for list-style display.

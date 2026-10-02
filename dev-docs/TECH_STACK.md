@@ -56,6 +56,15 @@ has to guess. Pages get `lang="zh-Hant"` so the system picks Traditional Chinese
 - Font size, line height, paragraph spacing, page width — all live-updating CSS.
 - Caveat: many old CHMs use `<br><br>` instead of `<p>`; paragraph spacing applies to real `<p>`/`<div>` blocks only.
 
+### PDF (feat/pdf)
+- `PDFReaderController` (PDFKit `PDFView`) implements the same `ReaderModel` protocol as the CHM reader, so the
+  sidebar, notes panel, tabs and toolbar are shared (`BookView<R: ReaderModel>`).
+- Contents come from the PDF outline; PDFs without one get a page list. Page ids are `/page/<n>` (`#<y>` for a position).
+- Highlights are anchored by page + UTF-16 offsets into `PDFPage.string`, with the quoted text as fallback, and drawn
+  as in-memory `PDFAnnotation` highlights tagged `chmreader:<id>`. The PDF file is never written.
+- Fixed layout: font-size controls become zoom; the typography panel shows only background themes.
+- Not yet: password-protected PDFs, highlights spanning pages (only the first page's part is kept).
+
 ### Tabs
 - Native macOS window tabs (`NSWindow.addTabbedWindow`); each tab is a SwiftUI window keyed by a `BookTarget`
   (book URL + page + unique id). Opened via ⌘T, sidebar right-click → 在新分頁開啟, or ⌘-click a link.

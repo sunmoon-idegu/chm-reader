@@ -18,7 +18,7 @@ public final class CHMBook: @unchecked Sendable {
     public init(url: URL) throws {
         let file = try CHMFile(url: url)
         self.file = file
-        self.key = try CHMBook.fingerprint(url)
+        self.key = try FileFingerprint.key(for: url)
 
         let system = SystemInfo(data: file.data(at: "/#SYSTEM") ?? Data())
         lcid = system.lcid ?? 0x0404
@@ -60,18 +60,6 @@ public final class CHMBook: @unchecked Sendable {
 
     public func decodeText(_ data: Data) -> String {
         TextDecoding.decode(data, fallbacks: encodings)
-    }
-
-    private static func fingerprint(_ url: URL) throws -> String {
-        let handle = try FileHandle(forReadingFrom: url)
-        defer { try? handle.close() }
-        let size = try handle.seekToEnd()
-        try handle.seek(toOffset: 0)
-        let head = try handle.read(upToCount: 64 * 1024) ?? Data()
-        var hasher = SHA256()
-        withUnsafeBytes(of: size.littleEndian) { hasher.update(bufferPointer: $0) }
-        hasher.update(data: head)
-        return hasher.finalize().map { String(format: "%02x", $0) }.joined()
     }
 }
 
@@ -144,5 +132,20 @@ struct SystemInfo {
             }
             i = start + length
         }
+    }
+}
+
+/// Stable identity for a book file (size + first 64 KB), so notes survive moving or renaming it.
+public enum FileFingerprint {
+    public static func key(for url: URL) throws -> String {
+        let handle = try FileHandle(forReadingFrom: url)
+        defer { try? handle.close() }
+        let size = try handle.seekToEnd()
+        try handle.seek(toOffset: 0)
+        let head = try handle.read(upToCount: 64 * 1024) ?? Data()
+        var hasher = SHA256()
+        withUnsafeBytes(of: size.littleEndian) { hasher.update(bufferPointer: $0) }
+        hasher.update(data: head)
+        return hasher.finalize().map { String(format: "%02x", $0) }.joined()
     }
 }
