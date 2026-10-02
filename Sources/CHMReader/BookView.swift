@@ -42,6 +42,7 @@ struct BookView<R: ReaderModel>: View {
             reader.start(style: prefs.style)
         }
         .onChange(of: prefs.style) { _, style in reader.apply(style: style) }
+        .onChange(of: reader.searchRequest) { _, _ in showSidebar = true }
         .onChange(of: reader.zoomLabel) { _, _ in
             guard !showTypography else { return }
             withAnimation { showSizeToast = true }

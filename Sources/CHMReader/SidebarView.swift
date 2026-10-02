@@ -7,6 +7,7 @@ struct SidebarView<R: ReaderModel>: View {
     private var prefs = ReadingPrefs()
     @State private var showIndex = false
     @State private var query = ""
+    @FocusState private var searchFocused: Bool
 
     init(reader: R) { self.reader = reader }
 
@@ -23,7 +24,9 @@ struct SidebarView<R: ReaderModel>: View {
                     .labelsHidden()
                 }
 
-                SearchField(text: $query, prompt: showIndex ? "搜尋索引" : "搜尋目錄", palette: palette)
+                SearchField(text: $query, prompt: showIndex ? "搜尋索引" : "搜尋目錄與內文", palette: palette)
+                    .focused($searchFocused)
+                    .onExitCommand { query = ""; searchFocused = false }
             }
             .padding(.horizontal, 14)
             .padding(.top, 14)
@@ -36,11 +39,16 @@ struct SidebarView<R: ReaderModel>: View {
             } else if query.isEmpty {
                 TOCTree(reader: reader, palette: palette)
             } else {
-                FlatEntries(reader: reader, rows: filtered(reader.toc), palette: palette)
+                SearchResults(reader: reader, query: query, titleRows: filtered(reader.toc), palette: palette)
             }
         }
         .background(palette.background)
         .environment(\.colorScheme, palette.colorScheme)
+        .onChange(of: reader.searchRequest) { _, _ in
+            showIndex = false
+            // Let the sidebar finish sliding in before taking focus.
+            DispatchQueue.main.asyncAfter(deadline: .now() + 0.3) { searchFocused = true }
+        }
     }
 
     private func filtered(_ entries: [SitemapEntry]) -> [(entry: SitemapEntry, depth: Int)] {
@@ -74,6 +82,167 @@ struct SearchField: View {
         .padding(.vertical, 6)
         .background(palette.card, in: RoundedRectangle(cornerRadius: 7))
         .overlay(RoundedRectangle(cornerRadius: 7).stroke(palette.separator))
+    }
+}
+
+/// Search results: matching contents titles, then full-text matches grouped by page with snippets.
+private struct SearchResults<R: ReaderModel>: View {
+    @ObservedObject var reader: R
+    let query: String
+    let titleRows: [(entry: SitemapEntry, depth: Int)]
+    let palette: ChromePalette
+    @State private var results: [FullTextIndex.PageResult]?
+    @State private var showAllTitles = false
+    @State private var activeHit: String?
+    @State private var expandedPages: Set<String> = []
+
+    var body: some View {
+        ScrollView {
+            LazyVStack(alignment: .leading, spacing: 1) {
+                if !titleRows.isEmpty {
+                    header("目錄", detail: "\(titleRows.count) 項")
+                    ForEach(titleRows.prefix(showAllTitles ? titleRows.count : 5), id: \.entry.id) { row in
+                        EntryRow(entry: row.entry, depth: 0, palette: palette, isCurrent: false,
+                                 isExpanded: nil, onToggle: {}, reader: reader)
+                    }
+                    if titleRows.count > 5 && !showAllTitles {
+                        Button("顯示全部 \(titleRows.count) 項") { showAllTitles = true }
+                            .buttonStyle(.plain)
+                            .font(.system(size: 12))
+                            .foregroundStyle(palette.accent)
+                            .padding(.leading, 22)
+                            .padding(.vertical, 4)
+                    }
+                }
+
+                header("內文", detail: summary)
+                if let results {
+                    if results.isEmpty {
+                        Text("內文中沒有「\(query)」")
+                            .font(.system(size: 12.5))
+                            .foregroundStyle(palette.secondary)
+                            .padding(.horizontal, 12)
+                            .padding(.vertical, 6)
+                    }
+                    ForEach(results) { page in
+                        pageResult(page)
+                    }
+                } else {
+                    HStack(spacing: 8) {
+                        ProgressView().controlSize(.small)
+                        Text("搜尋中…（第一次搜尋需要建立索引）")
+                            .font(.system(size: 12))
+                            .foregroundStyle(palette.secondary)
+                    }
+                    .padding(.horizontal, 12)
+                    .padding(.vertical, 8)
+                }
+            }
+            .padding(8)
+        }
+        .task(id: query) {
+            results = nil
+            expandedPages = []
+            try? await Task.sleep(for: .milliseconds(250))
+            guard !Task.isCancelled else { return }
+            let found = await reader.searchText(query)
+            guard !Task.isCancelled else { return }
+            results = found
+        }
+    }
+
+    private var summary: String {
+        guard let results else { return "" }
+        let total = results.map(\.totalHits).reduce(0, +)
+        return total == 0 ? "" : "\(total) 處 · \(results.count)\(results.count >= 200 ? "+" : "") 頁"
+    }
+
+    private func header(_ title: String, detail: String) -> some View {
+        HStack(alignment: .firstTextBaseline) {
+            Text(title).font(.system(size: 11.5, weight: .semibold))
+            Text(detail).font(.system(size: 11)).foregroundStyle(palette.secondary)
+            Spacer()
+        }
+        .foregroundStyle(palette.text)
+        .padding(.horizontal, 12)
+        .padding(.top, 10)
+        .padding(.bottom, 4)
+    }
+
+    private func pageResult(_ page: FullTextIndex.PageResult) -> some View {
+        VStack(alignment: .leading, spacing: 1) {
+            HStack(alignment: .firstTextBaseline) {
+                Text(page.title)
+                    .font(.system(size: 13, weight: .semibold))
+                    .foregroundStyle(palette.text)
+                    .lineLimit(1)
+                Spacer(minLength: 6)
+                Text("\(page.totalHits)")
+                    .font(.system(size: 10.5, weight: .semibold).monospacedDigit())
+                    .foregroundStyle(palette.secondary)
+            }
+            .padding(.horizontal, 12)
+            .padding(.top, 8)
+            .padding(.bottom, 2)
+
+            let expanded = expandedPages.contains(page.id)
+            ForEach(page.hits.prefix(expanded ? page.hits.count : 3)) { hit in
+                SnippetRow(hit: hit, palette: palette, isActive: activeHit == hit.id) {
+                    activeHit = hit.id
+                    reader.openSearchHit(hit, query: query)
+                }
+            }
+            if !expanded && page.totalHits > 3 {
+                Button("顯示本頁其餘 \(page.totalHits - 3) 處") { expandedPages.insert(page.id) }
+                    .buttonStyle(.plain)
+                    .font(.system(size: 11.5))
+                    .foregroundStyle(palette.accent)
+                    .padding(.leading, 12)
+                    .padding(.vertical, 3)
+            } else if expanded && page.totalHits > page.hits.count {
+                Text("只列出前 \(page.hits.count) 處")
+                    .font(.system(size: 11))
+                    .foregroundStyle(palette.secondary)
+                    .padding(.leading, 12)
+                    .padding(.vertical, 3)
+            }
+        }
+    }
+}
+
+private struct SnippetRow: View {
+    let hit: FullTextIndex.Hit
+    let palette: ChromePalette
+    let isActive: Bool
+    let action: () -> Void
+    @State private var hovering = false
+
+    var body: some View {
+        Text(snippet)
+            .font(.system(size: 12.5))
+            .lineSpacing(3)
+            .lineLimit(3)
+            .frame(maxWidth: .infinity, alignment: .leading)
+            .padding(.horizontal, 12)
+            .padding(.vertical, 6)
+            .background(
+                RoundedRectangle(cornerRadius: 6)
+                    .fill(isActive ? palette.accent.opacity(0.14) : (hovering ? palette.hover : .clear)))
+            .contentShape(Rectangle())
+            .onHover { hovering = $0 }
+            .onTapGesture(perform: action)
+    }
+
+    private var snippet: AttributedString {
+        var before = AttributedString("…" + hit.before)
+        before.foregroundColor = palette.secondary
+        var match = AttributedString(hit.match)
+        match.foregroundColor = palette.text
+        match.font = .system(size: 12.5, weight: .bold)
+        match.backgroundColor = Color(red: 1, green: 0.84, blue: 0.04).opacity(0.45)
+        var after = AttributedString(hit.after + "…")
+        after.foregroundColor = palette.secondary
+        return before + match + after
     }
 }
 

@@ -87,6 +87,9 @@ final class ReaderController: NSObject, ObservableObject, WKNavigationDelegate, 
     @Published private(set) var hasSelection = false
 
     var openInNewTab: ((String) -> Void)?
+    @Published var searchRequest = 0
+    private var searchIndex: Task<FullTextIndex, Never>?
+    private var pendingFind: (query: String, occurrence: Int)?
     private var style: ReadingStyle?
     private var pendingReveal: UUID?
 
@@ -245,6 +248,32 @@ final class ReaderController: NSObject, ObservableObject, WKNavigationDelegate, 
         if let id = pendingReveal {
             pendingReveal = nil
             _ = await js("return chmReader.scrollTo(id)", ["id": id.uuidString])
+        }
+        if let find = pendingFind {
+            pendingFind = nil
+            _ = await js("return chmReader.find(q, n)", ["q": find.query, "n": find.occurrence])
+        }
+    }
+
+    // MARK: Search
+
+    func searchText(_ query: String) async -> [FullTextIndex.PageResult] {
+        let task = searchIndex ?? {
+            let book = self.book
+            let task = Task.detached(priority: .userInitiated) { FullTextIndex(pages: book.searchablePages()) }
+            searchIndex = task
+            return task
+        }()
+        let index = await task.value
+        return await Task.detached(priority: .userInitiated) { index.search(query, hitsPerPage: 100) }.value
+    }
+
+    func openSearchHit(_ hit: FullTextIndex.Hit, query: String) {
+        if hit.pageID.caseInsensitiveCompare(currentPage) == .orderedSame {
+            Task { _ = await js("return chmReader.find(q, n)", ["q": query, "n": hit.occurrence]) }
+        } else {
+            pendingFind = (query, hit.occurrence)
+            open(hit.pageID)
         }
     }
 

@@ -51,6 +51,8 @@ final class PDFReaderController: NSObject, ObservableObject, ReaderModel {
     @Published var selectedAnnotation: Annotation?
     @Published var showNotePanel = false
     var openInNewTab: ((String) -> Void)?
+    @Published var searchRequest = 0
+    private var searchIndex: Task<FullTextIndex, Never>?
 
     private let initialPage: String
     /// Outline titles by page index, for naming pages ("第 12 頁 · 第二章").
@@ -151,6 +153,34 @@ final class PDFReaderController: NSObject, ObservableObject, ReaderModel {
     private func title(forPageIndex index: Int) -> String {
         let section = sectionStarts.last { $0.page <= index }?.title
         return "第 \(index + 1) 頁" + (section.map { " · \($0)" } ?? "")
+    }
+
+    // MARK: Search
+
+    func searchText(_ query: String) async -> [FullTextIndex.PageResult] {
+        let task = searchIndex ?? {
+            // PDFKit is read on the main actor, yielding so the UI stays responsive on long documents.
+            let task = Task { @MainActor [document] in
+                var pages: [FullTextIndex.Page] = []
+                for i in 0..<document.pageCount {
+                    pages.append(.init(id: "/page/\(i + 1)", title: self.title(forPageIndex: i),
+                                       text: document.page(at: i)?.string ?? ""))
+                    if i % 20 == 19 { await Task.yield() }
+                }
+                return FullTextIndex(pages: pages)
+            }
+            searchIndex = task
+            return task
+        }()
+        let index = await task.value
+        return await Task.detached(priority: .userInitiated) { index.search(query, hitsPerPage: 100) }.value
+    }
+
+    func openSearchHit(_ hit: FullTextIndex.Hit, query: String) {
+        guard let index = Self.pageIndex(of: hit.pageID), let page = document.page(at: index),
+              let selection = page.selection(for: hit.range) else { return }
+        pdfView.go(to: selection)
+        pdfView.setCurrentSelection(selection, animate: true)
     }
 
     // MARK: Highlights

@@ -67,6 +67,11 @@ struct ReaderCommands: Commands {
             .keyboardShortcut("t")
             .disabled(reader == nil)
         }
+        CommandGroup(after: .textEditing) {
+            Button("搜尋內文…") { reader?.searchRequest += 1 }
+                .keyboardShortcut("f")
+                .disabled(reader == nil)
+        }
         CommandMenu("閱讀") {
             Button("首頁") { reader?.goHome() }
                 .keyboardShortcut("h", modifiers: [.command, .shift])

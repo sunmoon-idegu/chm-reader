@@ -116,6 +116,43 @@ enum ReaderScript {
         }
       }
 
+      /// DOM range covering text offsets [s, e) of the index.
+      function rangeFor(idx, s, e) {
+        let startNode = null, startOff = 0, endNode = null, endOff = 0;
+        for (const { node, start } of idx.nodes) {
+          const end = start + node.nodeValue.length;
+          if (!startNode && s >= start && s < end) { startNode = node; startOff = s - start; }
+          if (e > start && e <= end) { endNode = node; endOff = e - start; break; }
+        }
+        if (!startNode || !endNode) return null;
+        const r = document.createRange();
+        r.setStart(startNode, startOff);
+        r.setEnd(endNode, endOff);
+        return r;
+      }
+
+      /// Selects the nth (0-based) case-insensitive match of q and scrolls it into view.
+      function find(q, n) {
+        const idx = buildIndex();
+        const hay = idx.text.toLowerCase(), needle = q.toLowerCase();
+        let pos = -1;
+        for (let i = 0, from = 0; i <= n; i++) {
+          const p = hay.indexOf(needle, from);
+          if (p < 0) break;
+          pos = p;
+          from = p + needle.length;
+        }
+        if (pos < 0) return false;
+        const r = rangeFor(idx, pos, pos + needle.length);
+        if (!r) return false;
+        const sel = window.getSelection();
+        sel.removeAllRanges();
+        sel.addRange(r);
+        const rect = r.getBoundingClientRect();
+        window.scrollBy({ top: rect.top - window.innerHeight / 3, behavior: 'smooth' });
+        return true;
+      }
+
       function marks(id) {
         return document.querySelectorAll('mark.' + HL + '[data-id="' + CSS.escape(id) + '"]');
       }
@@ -177,7 +214,8 @@ enum ReaderScript {
           setTimeout(() => all.forEach((m) => m.classList.remove('chmr-flash')), 1500);
           return true;
         },
-        clearSelection() { const s = window.getSelection(); if (s) s.removeAllRanges(); }
+        clearSelection() { const s = window.getSelection(); if (s) s.removeAllRanges(); },
+        find
       };
     })();
     """#

@@ -65,6 +65,15 @@ has to guess. Pages get `lang="zh-Hant"` so the system picks Traditional Chinese
 - Fixed layout: font-size controls become zoom; the typography panel shows only background themes.
 - Not yet: password-protected PDFs, highlights spanning pages (only the first page's part is kept).
 
+### Full-text search (feat/search)
+- `CHMKit.FullTextIndex`: in-memory index of every page's visible text, built once per book in the background
+  (瑜伽師地論: 529 pages, 7.3 M characters, ~1.8 s), then case/width/diacritic-insensitive substring search (~0.2 s).
+- CHM text comes from `HTMLText.plainText` over each archive page; PDF text from `PDFPage.string`.
+- A hit is identified by page + occurrence number. CHM jumps via the page script's `chmReader.find(q, n)`, which
+  selects the nth match in the rendered DOM; PDF selects `page.selection(for: range)`. The match stays selected,
+  so it can be highlighted immediately.
+- UI: the sidebar search field matches contents titles and page text; ⌘F focuses it.
+
 ### Tabs
 - Native macOS window tabs (`NSWindow.addTabbedWindow`); each tab is a SwiftUI window keyed by a `BookTarget`
   (book URL + page + unique id). Opened via ⌘T, sidebar right-click → 在新分頁開啟, or ⌘-click a link.

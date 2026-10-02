@@ -86,3 +86,55 @@ final class RealBookTests: XCTestCase {
         XCTAssertFalse(html.contains("\u{FFFD}"))
     }
 }
+
+final class FullTextSearchTests: XCTestCase {
+    func testPlainTextDropsHeadScriptsAndTags() {
+        let html = """
+            <html><head><title>標題</title><style>p{}</style></head>
+            <body><script>var x = "阿賴耶識";</script><p>第一段 &amp; <b>阿賴耶識</b></p><p>第二段</p></body></html>
+            """
+        XCTAssertEqual(HTMLText.plainText(html), "第一段 & 阿賴耶識\n第二段")
+    }
+
+    func testSearchFindsAllOccurrencesWithSnippets() {
+        let index = FullTextIndex(pages: [
+            .init(id: "/a.htm", title: "A", text: "前言。阿賴耶識是第八識，阿賴耶識又名藏識。"),
+            .init(id: "/b.htm", title: "B", text: "沒有這個詞"),
+            .init(id: "/c.htm", title: "C", text: "Alaya and ALAYA"),
+        ])
+        let results = index.search("阿賴耶識", hitsPerPage: 1)
+        XCTAssertEqual(results.map(\.pageID), ["/a.htm"])
+        XCTAssertEqual(results[0].totalHits, 2)
+        XCTAssertEqual(results[0].hits.count, 1)
+        XCTAssertEqual(results[0].hits[0].match, "阿賴耶識")
+        XCTAssertEqual(results[0].hits[0].before, "前言。")
+
+        let latin = index.search("alaya")
+        XCTAssertEqual(latin.first?.totalHits, 2, "case-insensitive")
+        XCTAssertEqual(latin.first?.hits.map(\.occurrence), [0, 1])
+    }
+
+    func testEmptyQueryReturnsNothing() {
+        XCTAssertTrue(FullTextIndex(pages: [.init(id: "/a", title: "A", text: "abc")]).search("  ").isEmpty)
+    }
+}
+
+final class RealBookSearchTests: XCTestCase {
+    func testSearchRealBook() throws {
+        guard let path = ProcessInfo.processInfo.environment["CHM_TEST_FILE"] else {
+            throw XCTSkip("Set CHM_TEST_FILE to run")
+        }
+        let book = try CHMBook(url: URL(fileURLWithPath: path))
+        let start = Date()
+        let index = FullTextIndex(pages: book.searchablePages())
+        let built = Date().timeIntervalSince(start)
+        let results = index.search("阿賴耶識")
+        let searched = Date().timeIntervalSince(start) - built
+        print("pages=\(index.pages.count) chars=\(index.pages.map(\.text.count).reduce(0, +)) index=\(String(format: "%.2f", built))s search=\(String(format: "%.3f", searched))s")
+        print("pages with 阿賴耶識:", results.count, "total hits:", results.map(\.totalHits).reduce(0, +))
+        if let first = results.first, let hit = first.hits.first {
+            print("first:", first.title, "→", hit.before + "【" + hit.match + "】" + hit.after)
+        }
+        XCTAssertFalse(results.isEmpty)
+    }
+}
