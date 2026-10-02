@@ -31,8 +31,8 @@ struct BookView<R: ReaderModel>: View {
                         .allowsHitTesting(false)
                 }
             }
-        .navigationTitle(reader.pageTitle.isEmpty ? reader.bookTitle : reader.pageTitle)
-        .navigationSubtitle(reader.pageTitle.isEmpty ? "" : reader.bookTitle)
+        .navigationTitle(reader.bookTitle)
+        .navigationSubtitle(reader.pageTitle)
         .toolbar { toolbar }
         .focusedSceneObject(reader)
         .onAppear {

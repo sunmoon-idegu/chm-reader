@@ -14,12 +14,6 @@ struct SidebarView<R: ReaderModel>: View {
         let palette = ChromePalette(prefs.style)
         VStack(alignment: .leading, spacing: 0) {
             VStack(alignment: .leading, spacing: 10) {
-                Text(reader.bookTitle)
-                    .font(.system(size: 13, weight: .semibold))
-                    .foregroundStyle(palette.text)
-                    .lineLimit(2)
-                    .lineSpacing(2)
-
                 if !reader.keywordIndex.isEmpty {
                     Picker("", selection: $showIndex) {
                         Text("目錄").tag(false)
@@ -146,9 +140,10 @@ private struct TOCTree<R: ReaderModel>: View {
     }
 
     private func ancestry(in entries: [SitemapEntry]) -> [SitemapEntry]? {
+        // Deepest match wins: a chapter and its first section often start on the same page.
         for e in entries {
-            if isCurrent(e) { return [e] }
             if let sub = ancestry(in: e.children) { return [e] + sub }
+            if isCurrent(e) { return [e] }
         }
         return nil
     }

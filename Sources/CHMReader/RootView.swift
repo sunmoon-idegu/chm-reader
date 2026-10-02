@@ -41,11 +41,28 @@ struct RootView: View {
             if let document {
                 reader(for: document)
                     .id(document.key)
-            } else if loading {
-                ProgressView("開啟中…")
-                    .frame(maxWidth: .infinity, maxHeight: .infinity)
             } else {
-                WelcomeView(open: { target = BookTarget(url: $0) })
+                Group {
+                    if loading {
+                        ProgressView("開啟中…")
+                            .frame(maxWidth: .infinity, maxHeight: .infinity)
+                    } else {
+                        WelcomeView(open: { target = BookTarget(url: $0) })
+                    }
+                }
+                // Same toolbar style as a book tab, so the title bar keeps its height (e.g. after the tab bar's +).
+                .navigationTitle("CHM 閱讀器")
+                .toolbar {
+                    ToolbarItem(placement: .primaryAction) {
+                        Button {
+                            if let url = RecentBooks.choose() { target = BookTarget(url: url) }
+                        } label: {
+                            Label("開啟", systemImage: "folder")
+                        }
+                        .help("開啟 CHM 或 PDF 檔案 (⌘O)")
+                        .disabled(loading)
+                    }
+                }
             }
         }
         .task(id: target?.url) { await load() }

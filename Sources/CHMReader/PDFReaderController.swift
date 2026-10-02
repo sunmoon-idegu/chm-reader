@@ -264,20 +264,23 @@ final class PDFReaderController: NSObject, ObservableObject, ReaderModel {
         return number - 1
     }
 
+    /// The PDF outline, keeping only entries that lead somewhere in this document. Excerpts often carry the
+    /// whole book's outline, where most entries are web links to other chapters.
     private static func outlineEntries(_ document: PDFDocument) -> [SitemapEntry] {
         var nextID = 0
-        func convert(_ item: PDFOutline) -> SitemapEntry {
-            nextID += 1
-            let id = nextID
+        func convert(_ item: PDFOutline) -> SitemapEntry? {
+            let children = (0..<item.numberOfChildren).compactMap { item.child(at: $0) }.compactMap(convert)
             var local: String?
-            if let destination = item.destination, let page = destination.page {
+            let destination = item.destination ?? (item.action as? PDFActionGoTo)?.destination
+            if let destination, let page = destination.page {
                 local = "/page/\(document.index(for: page) + 1)"
                 if destination.point.y != kPDFDestinationUnspecifiedValue { local! += "#\(Int(destination.point.y))" }
             }
-            let children = (0..<item.numberOfChildren).compactMap { item.child(at: $0) }.map(convert)
-            return SitemapEntry(id: id, name: item.label ?? "", local: local, children: children)
+            guard local != nil || !children.isEmpty else { return nil }
+            nextID += 1
+            return SitemapEntry(id: nextID, name: item.label ?? "", local: local, children: children)
         }
         guard let root = document.outlineRoot else { return [] }
-        return (0..<root.numberOfChildren).compactMap { root.child(at: $0) }.map(convert)
+        return (0..<root.numberOfChildren).compactMap { root.child(at: $0) }.compactMap(convert)
     }
 }
