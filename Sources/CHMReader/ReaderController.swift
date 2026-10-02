@@ -87,6 +87,7 @@ final class ReaderController: NSObject, ObservableObject, WKNavigationDelegate, 
     @Published private(set) var hasSelection = false
 
     var openInNewTab: ((String) -> Void)?
+    var openBeside: ((String) -> Void)?
     @Published var searchRequest = 0
     private var searchIndex: Task<FullTextIndex, Never>?
     private var pendingFind: (query: String, occurrence: Int)?

@@ -24,7 +24,7 @@
 - **全文搜尋**：⌘F 搜尋整本書的內文，結果依頁面列出並標示上下文，點一下就跳到該處。
 - **螢光標記與筆記**：選字按 ⌥⌘H 標記，點螢光文字即可在右側筆記欄寫筆記，自動儲存；可看本頁或全書筆記，並匯出 Markdown。
 - **舒適排版**：蘋方、宋體、楷體；字級（⌘= / ⌘-）、行高、段距、版面寬度；白、米黃、護眼綠、夜間或自訂背景。
-- **分頁閱讀**：⌘T 或右鍵「在新分頁開啟」，同時對照多個段落。
+- **分頁與分割畫面**：⌘T 開新分頁；⌘\\ 在同一分頁並排閱讀兩本書（或同一本書的兩處），可各自開啟 CHM 或 PDF。
 - **PDF**：同樣的目錄、螢光標記、筆記與分頁，目錄取自 PDF 書籤；可縮放，原始檔案不會被修改。
 - **隱私**：檔案與筆記只存在你的 Mac，不收集任何資料。
 
@@ -36,7 +36,7 @@
 - Highlights (⌥⌘H) with a notes panel: per-page or whole-book view, autosave, Markdown export.
 - Typography controls: font, size, line height, paragraph spacing, page width, and themes including night mode.
 - PDF support: outline sidebar, highlights and notes, zoom; the PDF file itself is never modified.
-- Native macOS tabs, sandboxed, no data collection.
+- Split view (⌘\\): two books side by side in one tab; native macOS tabs; sandboxed, no data collection.
 
 ## 系統需求 Requirements
 

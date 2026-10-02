@@ -389,6 +389,7 @@ private struct EntryRow<R: ReaderModel>: View {
         }
         .contextMenu {
             if let local = entry.local {
+                Button("在另一側開啟") { reader.openBeside?(local) }
                 Button("在新分頁開啟") { reader.openInNewTab?(local) }
             }
         }

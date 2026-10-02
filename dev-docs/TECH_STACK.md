@@ -74,6 +74,15 @@ has to guess. Pages get `lang="zh-Hant"` so the system picks Traditional Chinese
   so it can be highlighted immediately.
 - UI: the sidebar search field matches contents titles and page text; ⌘F focuses it.
 
+### Split view (feat/split)
+- Each tab holds a `Workspace`: a primary reader and an optional secondary one (any CHM or PDF), plus which is active.
+  `AnyReader` wraps the concrete reader types; the toolbar, menus, sidebar and notes panel follow the active pane.
+- Layout: outer `NSSplitViewController` (sidebar | pages | notes); the pages area is a nested
+  `NSSplitViewController` with one or two panes. Sidebar and notes containers keep one hosted view per reader,
+  so search text and scroll survive switching panes. A local mouse-down monitor makes the clicked pane active.
+- ⌘\ toggles the split (opening the active book at its current page); each pane's header can open another file;
+  「在另一側開啟」 in the contents and notes context menus opens a page in the other pane.
+
 ### Tabs
 - Native macOS window tabs (`NSWindow.addTabbedWindow`); each tab is a SwiftUI window keyed by a `BookTarget`
   (book URL + page + unique id). Opened via ⌘T, sidebar right-click → 在新分頁開啟, or ⌘-click a link.

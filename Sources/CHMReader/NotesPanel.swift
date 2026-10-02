@@ -194,6 +194,7 @@ private struct NoteCard<R: ReaderModel>: View {
             reader.reveal(annotation)
         }
         .contextMenu {
+            Button("在另一側開啟") { reader.openBeside?(annotation.pagePath) }
             Button("在新分頁開啟") { reader.openInNewTab?(annotation.pagePath) }
             Button("刪除", role: .destructive) { reader.delete(annotation) }
         }

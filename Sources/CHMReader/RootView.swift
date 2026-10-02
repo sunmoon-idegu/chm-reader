@@ -86,33 +86,16 @@ struct RootView: View {
         }
     }
 
-    @ViewBuilder
     private func reader(for document: OpenedDocument) -> some View {
-        let context = AnnotationStore.container.mainContext
-        switch document {
-        case .chm(let book):
-            BookView(reader: ReaderController(book: book, initialPage: target?.page, modelContext: context))
-        case .pdf(let pdf, let key):
-            BookView(reader: PDFReaderController(
-                url: pdf.documentURL ?? target!.url, document: pdf, key: key, initialPage: target?.page, modelContext: context))
-        }
+        BookView(reader: AnyReader.make(document, url: target!.url, page: target?.page))
     }
 
     private func load() async {
         guard let url = target?.url else { document = nil; return }
         loading = true
         defer { loading = false }
-        // Held for the app's lifetime: tabs reopen the same file while it's being read.
-        _ = url.startAccessingSecurityScopedResource()
         do {
-            if url.pathExtension.lowercased() == "pdf" {
-                let key = try await Task.detached { try FileFingerprint.key(for: url) }.value
-                guard let pdf = PDFDocument(url: url) else { throw OpenError.unreadablePDF(url) }
-                guard !pdf.isLocked else { throw OpenError.lockedPDF(url) }
-                document = .pdf(pdf, key: key)
-            } else {
-                document = .chm(try await Task.detached { try CHMBook(url: url) }.value)
-            }
+            document = try await DocumentLoader.load(url)
             RecentBooks.add(url)
         } catch {
             self.error = error.localizedDescription

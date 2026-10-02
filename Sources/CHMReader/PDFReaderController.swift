@@ -51,6 +51,7 @@ final class PDFReaderController: NSObject, ObservableObject, ReaderModel {
     @Published var selectedAnnotation: Annotation?
     @Published var showNotePanel = false
     var openInNewTab: ((String) -> Void)?
+    var openBeside: ((String) -> Void)?
     @Published var searchRequest = 0
     private var searchIndex: Task<FullTextIndex, Never>?
 

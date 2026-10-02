@@ -46,21 +46,12 @@ struct CHMReaderApp: App {
 struct ReaderCommands: Commands {
     @Environment(\.openWindow) private var openWindow
     @FocusedValue(\.openBook) private var openBook
-    @FocusedObject private var chmReader: ReaderController?
-    @FocusedObject private var pdfReader: PDFReaderController?
+    @FocusedObject private var focusedWorkspace: Workspace?
 
-    private var focusedReaderHasNoSelection: Bool {
-        if let chmReader { return !chmReader.hasSelection }
-        if let pdfReader { return !pdfReader.hasSelection }
-        return false
-    }
-
-    /// The focused reader if SwiftUI knows it (keeps menu states live), else the frontmost window's reader.
-    private var reader: (any ReaderModel)? {
-        if let chmReader { return chmReader }
-        if let pdfReader { return pdfReader }
-        return ReaderRegistry.current
-    }
+    /// The focused workspace if SwiftUI knows it (keeps menu states live), else the frontmost window's.
+    private var workspace: Workspace? { focusedWorkspace ?? ReaderRegistry.current }
+    private var reader: (any ReaderModel)? { workspace?.model }
+    private var focusedReaderHasNoSelection: Bool { focusedWorkspace.map { !$0.model.hasSelection } ?? false }
 
     var body: some Commands {
         CommandGroup(replacing: .newItem) {
@@ -74,7 +65,7 @@ struct ReaderCommands: Commands {
         }
         // Replaces Edit ▸ Find, whose own ⌘F would otherwise win and do nothing in a web or PDF view.
         CommandGroup(replacing: .textEditing) {
-            Button("搜尋內文…") { reader?.searchRequest += 1 }
+            Button("搜尋內文…") { workspace?.requestSearch() }
                 .keyboardShortcut("f")
         }
         CommandMenu("閱讀") {
@@ -87,6 +78,9 @@ struct ReaderCommands: Commands {
                 .keyboardShortcut("-")
             Button(reader?.isReflowable == false ? "符合視窗大小" : "預設字級") { reader?.zoom(0) }
                 .keyboardShortcut("0")
+            Divider()
+            Button(workspace?.isSplit == true ? "關閉分割畫面" : "分割畫面") { workspace?.toggleSplit() }
+                .keyboardShortcut("\\")
             Divider()
             Button("螢光標記") { reader?.highlightSelection() }
                 .keyboardShortcut("h", modifiers: [.command, .option])
