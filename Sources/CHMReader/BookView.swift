@@ -39,6 +39,7 @@ struct BookView<R: ReaderModel>: View {
             reader.openInNewTab = { [url = reader.bookURL, openWindow, weak view = reader.contentView] page in
                 TabOpener.openTab(BookTarget(url: url, page: page), from: view?.window, using: openWindow)
             }
+            ReaderRegistry.register(reader)
             reader.start(style: prefs.style)
         }
         .onChange(of: prefs.style) { _, style in reader.apply(style: style) }

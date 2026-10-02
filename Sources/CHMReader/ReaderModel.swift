@@ -66,3 +66,24 @@ extension ReaderController: ReaderModel {
         objectWillChange.send()
     }
 }
+
+/// Finds the reader in the frontmost window for menu commands. SwiftUI's focused values go missing when an AppKit
+/// view (the web view or PDF view) is first responder, which left ⌘F and friends disabled.
+@MainActor
+enum ReaderRegistry {
+    private final class Entry {
+        weak var reader: AnyObject?
+        init(_ reader: AnyObject) { self.reader = reader }
+    }
+    private static var entries: [Entry] = []
+
+    static func register(_ reader: some ReaderModel) {
+        entries.removeAll { $0.reader == nil || $0.reader === reader }
+        entries.append(Entry(reader))
+    }
+
+    static var current: (any ReaderModel)? {
+        let window = NSApp.keyWindow ?? NSApp.mainWindow
+        return entries.lazy.compactMap { $0.reader as? any ReaderModel }.first { $0.contentView.window === window }
+    }
+}

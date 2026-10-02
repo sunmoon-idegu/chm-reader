@@ -19,6 +19,12 @@ enum TabOpener {
         openWindow(value: target)
     }
 
+    /// A new tab on the welcome screen, like the tab bar's + button.
+    static func openEmptyTab() {
+        let window = NSApp.keyWindow ?? NSApp.orderedWindows.first { $0.isVisible && $0.tabbingIdentifier == tabbingIdentifier }
+        _ = window?.tryToPerform(#selector(NSResponder.newWindowForTab(_:)), with: nil)
+    }
+
     /// Called when a new window appears. Every reader window joins an existing one as a tab: the window that
     /// asked for it, or else the frontmost reader window (SwiftUI makes its own window for files opened from Finder).
     static func adopt(_ window: NSWindow) {
@@ -26,6 +32,10 @@ enum TabOpener {
         window.isRestorable = false
         window.tabbingMode = .preferred
         window.tabbingIdentifier = tabbingIdentifier
+        // Keep the tab bar (and its + button) visible even with a single tab.
+        DispatchQueue.main.async {
+            if window.tabGroup?.isTabBarVisible == false { window.toggleTabBar(nil) }
+        }
         let fallback = NSApp.orderedWindows.first {
             $0 !== window && $0.isVisible && $0.tabbingIdentifier == tabbingIdentifier
         }

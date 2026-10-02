@@ -49,9 +49,17 @@ struct ReaderCommands: Commands {
     @FocusedObject private var chmReader: ReaderController?
     @FocusedObject private var pdfReader: PDFReaderController?
 
+    private var focusedReaderHasNoSelection: Bool {
+        if let chmReader { return !chmReader.hasSelection }
+        if let pdfReader { return !pdfReader.hasSelection }
+        return false
+    }
+
+    /// The focused reader if SwiftUI knows it (keeps menu states live), else the frontmost window's reader.
     private var reader: (any ReaderModel)? {
         if let chmReader { return chmReader }
-        return pdfReader
+        if let pdfReader { return pdfReader }
+        return ReaderRegistry.current
     }
 
     var body: some Commands {
@@ -61,35 +69,28 @@ struct ReaderCommands: Commands {
                 if let openBook { openBook(url) } else { openWindow(value: BookTarget(url: url)) }
             }
             .keyboardShortcut("o")
-            Button("新分頁") {
-                if let reader { TabOpener.openTab(BookTarget(url: reader.bookURL, page: reader.homePage), from: reader.contentView.window, using: openWindow) }
-            }
-            .keyboardShortcut("t")
-            .disabled(reader == nil)
+            Button("新分頁") { TabOpener.openEmptyTab() }
+                .keyboardShortcut("t")
         }
-        CommandGroup(after: .textEditing) {
+        // Replaces Edit ▸ Find, whose own ⌘F would otherwise win and do nothing in a web or PDF view.
+        CommandGroup(replacing: .textEditing) {
             Button("搜尋內文…") { reader?.searchRequest += 1 }
                 .keyboardShortcut("f")
-                .disabled(reader == nil)
         }
         CommandMenu("閱讀") {
             Button("首頁") { reader?.goHome() }
                 .keyboardShortcut("h", modifiers: [.command, .shift])
-                .disabled(reader == nil)
             Divider()
             Button(reader?.isReflowable == false ? "放大" : "放大字級") { reader?.zoom(1) }
                 .keyboardShortcut("=")
-                .disabled(reader == nil)
             Button(reader?.isReflowable == false ? "縮小" : "縮小字級") { reader?.zoom(-1) }
                 .keyboardShortcut("-")
-                .disabled(reader == nil)
             Button(reader?.isReflowable == false ? "符合視窗大小" : "預設字級") { reader?.zoom(0) }
                 .keyboardShortcut("0")
-                .disabled(reader == nil)
             Divider()
             Button("螢光標記") { reader?.highlightSelection() }
                 .keyboardShortcut("h", modifiers: [.command, .option])
-                .disabled(!(reader?.hasSelection ?? false))
+                .disabled(focusedReaderHasNoSelection)
         }
     }
 }
