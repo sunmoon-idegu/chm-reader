@@ -17,7 +17,8 @@ final class SelectionBar {
     /// Places the bar above `rect` (in `view`'s coordinates), or below it when there's no room above.
     func show(around rect: NSRect, in view: NSView) {
         let visible = view.bounds
-        guard rect.intersects(visible) else { return hide() }
+        let finite = [rect.minX, rect.minY, rect.width, rect.height].allSatisfy(\.isFinite)
+        guard finite, rect.intersects(visible) else { return hide() }
         let size = host.intrinsicContentSize
         let gap: CGFloat = 0  // the bar's own padding (room for its shadow) already spaces it from the text
         let x = min(max(rect.midX - size.width / 2, 8), max(visible.width - size.width - 8, 8))

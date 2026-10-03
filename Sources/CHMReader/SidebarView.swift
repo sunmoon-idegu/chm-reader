@@ -1,32 +1,50 @@
 import CHMKit
+import PDFKit
 import SwiftUI
 
-/// Left panel: the book's table of contents (plus its keyword index when the book has one).
+/// Left panel: tabs for the table of contents, the keyword index (CHM books that have one) and page
+/// thumbnails (PDF). Contents and index can be filtered by title; full-text search is the find bar (⌘F).
 struct SidebarView<R: ReaderModel>: View {
     @ObservedObject var reader: R
+    /// Set for PDFs, which get the 縮覽圖 tab.
+    let document: PDFDocument?
     private var prefs = ReadingPrefs()
-    @State private var showIndex = false
+    /// Remembered across books; a book without that tab shows 目錄.
+    @AppStorage("sidebar.tab") private var savedTab = Tab.contents
     @State private var query = ""
-    @FocusState private var searchFocused: Bool
+    @FocusState private var filterFocused: Bool
 
-    init(reader: R) { self.reader = reader }
+    enum Tab: String, Hashable { case contents, index, thumbnails }
+
+    private var tab: Tab { tabs.contains { $0.0 == savedTab } ? savedTab : .contents }
+
+    init(reader: R, document: PDFDocument? = nil) {
+        self.reader = reader
+        self.document = document
+    }
+
+    private var tabs: [(Tab, String)] {
+        [(.contents, "目錄")]
+            + (reader.keywordIndex.isEmpty ? [] : [(.index, "索引")])
+            + (document == nil ? [] : [(.thumbnails, "縮覽圖")])
+    }
 
     var body: some View {
         let palette = ChromePalette(prefs.style)
         VStack(alignment: .leading, spacing: 0) {
             VStack(alignment: .leading, spacing: 10) {
-                if !reader.keywordIndex.isEmpty {
-                    Picker("", selection: $showIndex) {
-                        Text("目錄").tag(false)
-                        Text("索引").tag(true)
+                if tabs.count > 1 {
+                    Picker("", selection: Binding(get: { tab }, set: { savedTab = $0 })) {
+                        ForEach(tabs, id: \.0) { Text($0.1).tag($0.0) }
                     }
                     .pickerStyle(.segmented)
                     .labelsHidden()
                 }
-
-                SearchField(text: $query, prompt: showIndex ? "搜尋索引" : "搜尋目錄與內文", palette: palette)
-                    .focused($searchFocused)
-                    .onExitCommand { query = ""; searchFocused = false }
+                if tab != .thumbnails {
+                    SearchField(text: $query, prompt: tab == .index ? "篩選索引" : "篩選目錄", palette: palette)
+                        .focused($filterFocused)
+                        .onExitCommand { query = ""; filterFocused = false }
+                }
             }
             .padding(.horizontal, 14)
             .padding(.top, 14)
@@ -34,27 +52,113 @@ struct SidebarView<R: ReaderModel>: View {
 
             Rectangle().fill(palette.separator).frame(height: 1)
 
-            if showIndex {
+            switch tab {
+            case .thumbnails:
+                if let document { ThumbnailList(reader: reader, document: document, palette: palette) }
+            case .index:
                 FlatEntries(reader: reader, rows: filtered(reader.keywordIndex), palette: palette)
-            } else if query.isEmpty {
-                TOCTree(reader: reader, palette: palette)
-            } else {
-                SearchResults(reader: reader, query: query, titleRows: filtered(reader.toc), palette: palette)
+            case .contents:
+                if query.isEmpty {
+                    TOCTree(reader: reader, palette: palette)
+                } else {
+                    FlatEntries(reader: reader, rows: filtered(reader.toc), palette: palette)
+                }
             }
         }
         .background(palette.background)
         .environment(\.colorScheme, palette.colorScheme)
-        .onChange(of: reader.searchRequest) { _, _ in
-            showIndex = false
-            // Let the sidebar finish sliding in before taking focus.
-            DispatchQueue.main.asyncAfter(deadline: .now() + 0.3) { searchFocused = true }
-        }
     }
 
     private func filtered(_ entries: [SitemapEntry]) -> [(entry: SitemapEntry, depth: Int)] {
         let all = entries.flatMap { $0.flattened() }
         guard !query.isEmpty else { return all }
         return all.filter { $0.entry.name.localizedCaseInsensitiveContains(query) }.map { ($0.entry, 0) }
+    }
+}
+
+/// PDF page thumbnails; the current page is outlined, a click goes to the page.
+private struct ThumbnailList<R: ReaderModel>: View {
+    @ObservedObject var reader: R
+    let document: PDFDocument
+    let palette: ChromePalette
+
+    private var currentIndex: Int? { PDFReaderController.pageIndex(of: reader.currentPage) }
+
+    var body: some View {
+        ScrollViewReader { proxy in
+            ScrollView {
+                LazyVStack(spacing: 14) {
+                    ForEach(0..<document.pageCount, id: \.self) { index in
+                        if let page = document.page(at: index) {
+                            PageThumbnail(page: page, number: index + 1, isCurrent: index == currentIndex, palette: palette) {
+                                reader.open("/page/\(index + 1)")
+                            }
+                            .id(index)
+                        }
+                    }
+                }
+                .padding(.horizontal, 14)
+                .padding(.vertical, 14)
+            }
+            .onAppear { if let currentIndex { proxy.scrollTo(currentIndex, anchor: .center) } }
+            .onChange(of: currentIndex) { _, index in
+                guard let index else { return }
+                withAnimation { proxy.scrollTo(index, anchor: .center) }
+            }
+        }
+    }
+}
+
+private struct PageThumbnail: View {
+    let page: PDFPage
+    let number: Int
+    let isCurrent: Bool
+    let palette: ChromePalette
+    let action: () -> Void
+    @State private var image: NSImage?
+    @State private var hovering = false
+
+    private static let cache = NSCache<PDFPage, NSImage>()
+    private static let width: CGFloat = 140
+
+    private var aspect: CGFloat {
+        let size = page.bounds(for: .cropBox).size
+        let turned = page.rotation % 180 != 0
+        let (w, h) = turned ? (size.height, size.width) : (size.width, size.height)
+        return h > 0 ? w / h : 0.75
+    }
+
+    var body: some View {
+        VStack(spacing: 6) {
+            ZStack {
+                Color.white
+                if let image { Image(nsImage: image).resizable().interpolation(.high) }
+            }
+            .frame(width: Self.width, height: Self.width / aspect)
+            .clipShape(RoundedRectangle(cornerRadius: 3))
+            .shadow(color: .black.opacity(0.18), radius: 3, y: 1)
+            .padding(4)
+            .overlay(
+                RoundedRectangle(cornerRadius: 6)
+                    .stroke(isCurrent ? palette.accent : (hovering ? palette.separator.opacity(3) : .clear),
+                            lineWidth: isCurrent ? 3 : 1.5))
+            Text("\(number)")
+                .font(.system(size: 11.5, weight: isCurrent ? .semibold : .regular).monospacedDigit())
+                .foregroundStyle(isCurrent ? palette.accent : palette.secondary)
+        }
+        .frame(maxWidth: .infinity)
+        .contentShape(Rectangle())
+        .onHover { hovering = $0 }
+        .onTapGesture(perform: action)
+        .task {
+            if let cached = Self.cache.object(forKey: page) { image = cached; return }
+            await Task.yield()  // let scrolling draw first; thumbnails render as rows come into view
+            guard !Task.isCancelled else { return }
+            let scale: CGFloat = 2
+            let rendered = page.thumbnail(of: CGSize(width: Self.width * scale, height: Self.width * scale / aspect), for: .cropBox)
+            Self.cache.setObject(rendered, forKey: page)
+            image = rendered
+        }
     }
 }
 
@@ -82,167 +186,6 @@ struct SearchField: View {
         .padding(.vertical, 6)
         .background(palette.card, in: RoundedRectangle(cornerRadius: 7))
         .overlay(RoundedRectangle(cornerRadius: 7).stroke(palette.separator))
-    }
-}
-
-/// Search results: matching contents titles, then full-text matches grouped by page with snippets.
-private struct SearchResults<R: ReaderModel>: View {
-    @ObservedObject var reader: R
-    let query: String
-    let titleRows: [(entry: SitemapEntry, depth: Int)]
-    let palette: ChromePalette
-    @State private var results: [FullTextIndex.PageResult]?
-    @State private var showAllTitles = false
-    @State private var activeHit: String?
-    @State private var expandedPages: Set<String> = []
-
-    var body: some View {
-        ScrollView {
-            LazyVStack(alignment: .leading, spacing: 1) {
-                if !titleRows.isEmpty {
-                    header("目錄", detail: "\(titleRows.count) 項")
-                    ForEach(titleRows.prefix(showAllTitles ? titleRows.count : 5), id: \.entry.id) { row in
-                        EntryRow(entry: row.entry, depth: 0, palette: palette, isCurrent: false,
-                                 isExpanded: nil, onToggle: {}, reader: reader)
-                    }
-                    if titleRows.count > 5 && !showAllTitles {
-                        Button("顯示全部 \(titleRows.count) 項") { showAllTitles = true }
-                            .buttonStyle(.plain)
-                            .font(.system(size: 12))
-                            .foregroundStyle(palette.accent)
-                            .padding(.leading, 22)
-                            .padding(.vertical, 4)
-                    }
-                }
-
-                header("內文", detail: summary)
-                if let results {
-                    if results.isEmpty {
-                        Text("內文中沒有「\(query)」")
-                            .font(.system(size: 12.5))
-                            .foregroundStyle(palette.secondary)
-                            .padding(.horizontal, 12)
-                            .padding(.vertical, 6)
-                    }
-                    ForEach(results) { page in
-                        pageResult(page)
-                    }
-                } else {
-                    HStack(spacing: 8) {
-                        ProgressView().controlSize(.small)
-                        Text("搜尋中…（第一次搜尋需要建立索引）")
-                            .font(.system(size: 12))
-                            .foregroundStyle(palette.secondary)
-                    }
-                    .padding(.horizontal, 12)
-                    .padding(.vertical, 8)
-                }
-            }
-            .padding(8)
-        }
-        .task(id: query) {
-            results = nil
-            expandedPages = []
-            try? await Task.sleep(for: .milliseconds(250))
-            guard !Task.isCancelled else { return }
-            let found = await reader.searchText(query)
-            guard !Task.isCancelled else { return }
-            results = found
-        }
-    }
-
-    private var summary: String {
-        guard let results else { return "" }
-        let total = results.map(\.totalHits).reduce(0, +)
-        return total == 0 ? "" : "\(total) 處 · \(results.count)\(results.count >= 200 ? "+" : "") 頁"
-    }
-
-    private func header(_ title: String, detail: String) -> some View {
-        HStack(alignment: .firstTextBaseline) {
-            Text(title).font(.system(size: 11.5, weight: .semibold))
-            Text(detail).font(.system(size: 11)).foregroundStyle(palette.secondary)
-            Spacer()
-        }
-        .foregroundStyle(palette.text)
-        .padding(.horizontal, 12)
-        .padding(.top, 10)
-        .padding(.bottom, 4)
-    }
-
-    private func pageResult(_ page: FullTextIndex.PageResult) -> some View {
-        VStack(alignment: .leading, spacing: 1) {
-            HStack(alignment: .firstTextBaseline) {
-                Text(page.title)
-                    .font(.system(size: 13, weight: .semibold))
-                    .foregroundStyle(palette.text)
-                    .lineLimit(1)
-                Spacer(minLength: 6)
-                Text("\(page.totalHits)")
-                    .font(.system(size: 10.5, weight: .semibold).monospacedDigit())
-                    .foregroundStyle(palette.secondary)
-            }
-            .padding(.horizontal, 12)
-            .padding(.top, 8)
-            .padding(.bottom, 2)
-
-            let expanded = expandedPages.contains(page.id)
-            ForEach(page.hits.prefix(expanded ? page.hits.count : 3)) { hit in
-                SnippetRow(hit: hit, palette: palette, isActive: activeHit == hit.id) {
-                    activeHit = hit.id
-                    reader.openSearchHit(hit, query: query)
-                }
-            }
-            if !expanded && page.totalHits > 3 {
-                Button("顯示本頁其餘 \(page.totalHits - 3) 處") { expandedPages.insert(page.id) }
-                    .buttonStyle(.plain)
-                    .font(.system(size: 11.5))
-                    .foregroundStyle(palette.accent)
-                    .padding(.leading, 12)
-                    .padding(.vertical, 3)
-            } else if expanded && page.totalHits > page.hits.count {
-                Text("只列出前 \(page.hits.count) 處")
-                    .font(.system(size: 11))
-                    .foregroundStyle(palette.secondary)
-                    .padding(.leading, 12)
-                    .padding(.vertical, 3)
-            }
-        }
-    }
-}
-
-private struct SnippetRow: View {
-    let hit: FullTextIndex.Hit
-    let palette: ChromePalette
-    let isActive: Bool
-    let action: () -> Void
-    @State private var hovering = false
-
-    var body: some View {
-        Text(snippet)
-            .font(.system(size: 12.5))
-            .lineSpacing(3)
-            .lineLimit(3)
-            .frame(maxWidth: .infinity, alignment: .leading)
-            .padding(.horizontal, 12)
-            .padding(.vertical, 6)
-            .background(
-                RoundedRectangle(cornerRadius: 6)
-                    .fill(isActive ? palette.accent.opacity(0.14) : (hovering ? palette.hover : .clear)))
-            .contentShape(Rectangle())
-            .onHover { hovering = $0 }
-            .onTapGesture(perform: action)
-    }
-
-    private var snippet: AttributedString {
-        var before = AttributedString("…" + hit.before)
-        before.foregroundColor = palette.secondary
-        var match = AttributedString(hit.match)
-        match.foregroundColor = palette.text
-        match.font = .system(size: 12.5, weight: .bold)
-        match.backgroundColor = Color(red: 1, green: 0.84, blue: 0.04).opacity(0.45)
-        var after = AttributedString(hit.after + "…")
-        after.foregroundColor = palette.secondary
-        return before + match + after
     }
 }
 

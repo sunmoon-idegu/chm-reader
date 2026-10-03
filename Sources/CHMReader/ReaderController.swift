@@ -91,7 +91,6 @@ final class ReaderController: NSObject, ObservableObject, WKNavigationDelegate, 
 
     var openInNewTab: ((String) -> Void)?
     var openBeside: ((String) -> Void)?
-    @Published var searchRequest = 0
     @Published var isPlacingNote = false {
         didSet {
             guard isPlacingNote != oldValue else { return }
@@ -284,7 +283,7 @@ final class ReaderController: NSObject, ObservableObject, WKNavigationDelegate, 
             return task
         }()
         let index = await task.value
-        return await Task.detached(priority: .userInitiated) { index.search(query, hitsPerPage: 100) }.value
+        return await Task.detached(priority: .userInitiated) { index.search(query, hitsPerPage: 100, maxPages: .max) }.value
     }
 
     func openSearchHit(_ hit: FullTextIndex.Hit, query: String) {

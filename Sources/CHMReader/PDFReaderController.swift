@@ -85,7 +85,6 @@ final class PDFReaderController: NSObject, ObservableObject, ReaderModel {
     @Published var showNotePanel = false
     var openInNewTab: ((String) -> Void)?
     var openBeside: ((String) -> Void)?
-    @Published var searchRequest = 0
     @Published var isPlacingNote = false {
         didSet {
             guard isPlacingNote != oldValue else { return }
@@ -237,10 +236,43 @@ final class PDFReaderController: NSObject, ObservableObject, ReaderModel {
         moveSelectionBar()
     }
 
-    /// After a mouse-up: offer the selection bar if text is selected.
+    /// After a mouse-up: keep only text in the selection, then offer the selection bar.
     func selectionEnded() {
+        guard let selection = pdfView.currentSelection else { return }
+        if let text = Self.textOnly(selection) {
+            if text !== selection { pdfView.setCurrentSelection(text, animate: false) }
+        } else {
+            pdfView.clearSelection()
+            return
+        }
         guard hasSelection, !isPlacingNote, let rect = selectionRect() else { return }
         selectionBar.show(around: rect, in: pdfView)
+    }
+
+    /// The selection as plain text runs. Dragging over a table can give a block selection whose geometry is
+    /// invalid (NaN, which crashed the selection bar); rebuilding it from its text ranges gives ordinary lines.
+    private static func textOnly(_ selection: PDFSelection) -> PDFSelection? {
+        var result: PDFSelection?
+        for page in selection.pages {
+            let length = (page.string ?? "" as String).utf16.count
+            for i in 0..<selection.numberOfTextRanges(on: page) {
+                let range = selection.range(at: i, on: page)
+                guard range.location != NSNotFound, range.length > 0, NSMaxRange(range) <= length,
+                      let part = page.selection(for: range) else { continue }
+                if let result { result.add(part) } else { result = part }
+            }
+        }
+        guard let result, !(result.string ?? "").trimmingCharacters(in: .whitespacesAndNewlines).isEmpty else { return nil }
+        // Same text as PDFKit's own selection: keep it, so the highlight looks unchanged while dragging.
+        if Self.isPlainText(selection), result.string == selection.string { return selection }
+        return result
+    }
+
+    private static func isPlainText(_ selection: PDFSelection) -> Bool {
+        selection.pages.allSatisfy { page in
+            let r = selection.bounds(for: page)
+            return !r.isNull && r.origin.x.isFinite && r.origin.y.isFinite && r.width.isFinite && r.height.isFinite
+        }
     }
 
     @objc private func moveSelectionBar() {
@@ -248,10 +280,14 @@ final class PDFReaderController: NSObject, ObservableObject, ReaderModel {
         if let rect = selectionRect() { selectionBar.show(around: rect, in: pdfView) } else { selectionBar.hide() }
     }
 
-    /// The selection's bounds on its first page, in PDF-view coordinates.
+    /// The selection's bounds on its first page, in PDF-view coordinates; nil unless it's a real rectangle.
     private func selectionRect() -> NSRect? {
         guard let selection = pdfView.currentSelection, let page = selection.pages.first else { return nil }
-        return pdfView.convert(selection.bounds(for: page), from: page)
+        let lines = selection.selectionsByLine().map { $0.bounds(for: page) }
+            .filter { !$0.isNull && !$0.isEmpty && $0.origin.x.isFinite && $0.origin.y.isFinite && $0.width.isFinite && $0.height.isFinite }
+        guard let first = lines.first else { return nil }
+        let rect = pdfView.convert(lines.dropFirst().reduce(first) { $0.union($1) }, from: page)
+        return rect.origin.x.isFinite && rect.origin.y.isFinite && rect.width.isFinite && rect.height.isFinite ? rect : nil
     }
 
     private func title(forPageIndex index: Int) -> String {
@@ -277,13 +313,17 @@ final class PDFReaderController: NSObject, ObservableObject, ReaderModel {
             return task
         }()
         let index = await task.value
-        return await Task.detached(priority: .userInitiated) { index.search(query, hitsPerPage: 100) }.value
+        return await Task.detached(priority: .userInitiated) { index.search(query, hitsPerPage: 100, maxPages: .max) }.value
     }
 
     func openSearchHit(_ hit: FullTextIndex.Hit, query: String) {
         guard let index = Self.pageIndex(of: hit.pageID), let page = document.page(at: index),
               let selection = page.selection(for: hit.range) else { return }
-        pdfView.go(to: selection)
+        // Leave room above the match: the find bar floats over the top of the page.
+        let bounds = selection.bounds(for: page)
+        let margin = 150 / max(pdfView.scaleFactor, 0.1)
+        let top = min(bounds.maxY + margin, page.bounds(for: .cropBox).maxY)
+        pdfView.go(to: PDFDestination(page: page, at: NSPoint(x: kPDFDestinationUnspecifiedValue, y: top)))
         pdfView.setCurrentSelection(selection, animate: true)
     }
 

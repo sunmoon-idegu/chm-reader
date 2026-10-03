@@ -26,13 +26,21 @@ struct BookView: View {
     var body: some View {
         ReaderSplitView(workspace: workspace, showLeft: showSidebar, showRight: model.showNotePanel, revision: layoutRevision)
             .overlay(alignment: .top) {
+                if workspace.find.isShown {
+                    FindBar(find: workspace.find)
+                        .padding(.top, 12)
+                        .transition(.move(edge: .top).combined(with: .opacity))
+                }
+            }
+            .animation(.easeOut(duration: 0.18), value: workspace.find.isShown)
+            .overlay(alignment: .top) {
                 if showSizeToast {
                     Text(model.zoomLabel)
                         .font(.callout.weight(.medium).monospacedDigit())
                         .padding(.horizontal, 14)
                         .padding(.vertical, 7)
                         .background(.regularMaterial, in: Capsule())
-                        .padding(.top, 14)
+                        .padding(.top, workspace.find.isShown ? 68 : 14)
                         .transition(.opacity)
                         .allowsHitTesting(false)
                 }
@@ -54,7 +62,7 @@ struct BookView: View {
                 workspace.start(style: prefs.style)
             }
             .onChange(of: prefs.style) { _, style in workspace.apply(style: style) }
-            .onChange(of: workspace.searchRequest) { _, _ in showSidebar = true }
+            .onChange(of: workspace.activeIsSecondary) { _, _ in workspace.find.refresh() }
             // Only zooms the user asked for; a PDF settling its auto-fit scale shouldn't flash the toast.
             .onChange(of: workspace.zoomTick) { _, _ in
                 guard !showTypography else { return }
@@ -68,14 +76,18 @@ struct BookView: View {
             }
     }
 
-    /// Left: contents. Right, in three groups: how the page looks (zoom, 版面) · the sticky-note tool ·
+    /// Left: contents, search. Right, in three groups: how the page looks (zoom, 版面) · the sticky-note tool ·
     /// the panes (split, notes). Highlighting lives in the bar that appears over selected text.
     @ToolbarContentBuilder
     private var toolbar: some ToolbarContent {
-        ToolbarItem(placement: .navigation) {
+        ToolbarItemGroup(placement: .navigation) {
             Button { showSidebar.toggle() } label: { Label("目錄", systemImage: "sidebar.left") }
                 .help(showSidebar ? "隱藏目錄 (⌃⌘S)" : "顯示目錄 (⌃⌘S)")
                 .keyboardShortcut("s", modifiers: [.command, .control])
+            Button { workspace.find.isShown ? workspace.find.close() : workspace.find.show() } label: {
+                Label("搜尋", systemImage: "magnifyingglass")
+            }
+            .help("搜尋內文 (⌘F)")
         }
         ToolbarItemGroup(placement: .primaryAction) {
             Button { workspace.zoom(-1) } label: {

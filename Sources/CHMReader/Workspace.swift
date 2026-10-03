@@ -29,7 +29,7 @@ enum AnyReader {
     func sidebar() -> AnyView {
         switch self {
         case .chm(let r): AnyView(SidebarView(reader: r))
-        case .pdf(let r): AnyView(SidebarView(reader: r))
+        case .pdf(let r): AnyView(SidebarView(reader: r, document: r.document))
         }
     }
 
@@ -76,17 +76,21 @@ final class Workspace: ObservableObject {
     @Published private(set) var choosingSecondary = false
     @Published private(set) var loadingPane: Bool?
     @Published var error: String?
-    /// Bumped by ⌘F; the window shows the sidebar.
-    @Published private(set) var searchRequest = 0
+    /// The find bar (⌘F), searching the active pane's book.
+    let find = FindSession()
     /// Bumped by user zooms; the window shows the zoom toast.
     @Published private(set) var zoomTick = 0
 
     var openInNewTab: ((URL, String) -> Void)?
     private var style: ReadingStyle?
     private var forwarding: [ObjectIdentifier: AnyCancellable] = [:]
+    private var findForwarding: AnyCancellable?
 
     init(primary: AnyReader) {
         self.primary = primary
+        find.workspace = self
+        // The toolbar and the find bar overlay follow the find session too.
+        findForwarding = find.objectWillChange.sink { [weak self] in self?.objectWillChange.send() }
     }
 
     var isSplit: Bool { secondary != nil || choosingSecondary }
@@ -115,11 +119,7 @@ final class Workspace: ObservableObject {
         zoomTick += 1
     }
 
-    func requestSearch() {
-        var model = self.model
-        model.searchRequest += 1
-        searchRequest += 1
-    }
+    func requestSearch() { find.show() }
 
     /// Splits, with the right pane asking which file to open (like a new tab), or closes the split.
     func toggleSplit() {

@@ -24,7 +24,8 @@
 - **正確顯示繁體中文**：依書中語系自動辨識 Big5 / CP950、HKSCS、GB18030 等舊編碼，不再出現亂碼。
 - **目錄側邊欄**：依章節瀏覽，自動標示目前位置；沒有目錄檔的書會依頁面標題自動整理。
 - **便利貼**：按工具列的便利貼（⌥⌘N），再點頁面任一處，就能在那裡貼上筆記。
-- **全文搜尋**：⌘F 搜尋整本書的內文，結果依頁面列出並標示上下文，點一下就跳到該處。
+- **全文搜尋**：⌘F 開啟浮在頁面上方的搜尋列，搜尋整本書的內文，↑ ↓（⌘G / ⇧⌘G）逐一跳到結果。
+- **縮覽圖**：PDF 的側邊欄可切換「目錄」與「縮覽圖」。
 - **螢光標記與筆記**：選字後從浮出的工具列複製、螢光標記或加筆記（⌥⌘H），點螢光文字即可在右側筆記欄寫筆記，自動儲存，⌫ 刪除、⌘Z 復原；可看本頁或全書筆記。
 - **舒適排版**：蘋方、宋體、楷體；字級（⌘= / ⌘-）、行高、段距、版面寬度；白、米黃、護眼綠、夜間或自訂背景。
 - **分頁與分割畫面**：⌘T 開新分頁；⌘\\ 在同一分頁並排閱讀兩本書（或同一本書的兩處），可各自開啟 CHM 或 PDF。
@@ -36,7 +37,8 @@
 - Reads legacy Chinese CHMs correctly: Big5/CP950, HKSCS and GB18030 are detected from the book's language ID and page charset.
 - Table-of-contents sidebar; books without a `.hhc` get a TOC built from their internal topic tables.
 - Sticky notes (⌥⌘N): click the tool, then anywhere on the page.
-- Full-text search (⌘F) across the whole book, with snippets; click a result to jump to the match.
+- Full-text search (⌘F): a floating find bar searches the whole book; ⌘G / ⇧⌘G step through matches.
+- PDF page thumbnails in the sidebar (目錄 | 縮覽圖 tabs).
 - Highlights (⌥⌘H) with a notes panel: per-page or whole-book view, autosave.
 - Typography controls: font, size, line height, paragraph spacing, page width, and themes including night mode.
 - PDF support: outline sidebar, highlights and notes, zoom; the PDF file itself is never modified.

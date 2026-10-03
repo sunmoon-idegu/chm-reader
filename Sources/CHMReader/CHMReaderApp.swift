@@ -67,6 +67,10 @@ struct ReaderCommands: Commands {
         CommandGroup(replacing: .textEditing) {
             Button("搜尋內文…") { workspace?.requestSearch() }
                 .keyboardShortcut("f")
+            Button("下一個") { workspace?.find.next() }
+                .keyboardShortcut("g")
+            Button("上一個") { workspace?.find.previous() }
+                .keyboardShortcut("g", modifiers: [.command, .shift])
         }
         CommandMenu("閱讀") {
             Button(reader?.isReflowable == false ? "放大" : "放大字級") { workspace?.zoom(1) }

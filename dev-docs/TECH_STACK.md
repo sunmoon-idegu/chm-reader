@@ -80,7 +80,14 @@ has to guess. Pages get `lang="zh-Hant"` so the system picks Traditional Chinese
 - A hit is identified by page + occurrence number. CHM jumps via the page script's `chmReader.find(q, n)`, which
   selects the nth match in the rendered DOM; PDF selects `page.selection(for: range)`. The match stays selected,
   so it can be highlighted immediately.
-- UI: the sidebar search field matches contents titles and page text; ⌘F focuses it.
+- UI: `FindBar` floats at the top of the page area (⌘F or the toolbar magnifier). `FindSession` (one per tab, in
+  `Workspace`) flattens all hits in book order, starts at the current page, and steps with ↩ / ⇧↩, ↑ ↓, ⌘G / ⇧⌘G;
+  it re-searches when the active pane changes. PDF jumps leave ~150 pt above the match so the bar doesn't cover it.
+  The sidebar field only filters 目錄 / 索引 titles.
+- Sidebar tabs: 目錄, 索引 (CHM with `.hhk`), 縮覽圖 (PDF: `page.thumbnail`, cached, rendered lazily); the chosen
+  tab is remembered (`sidebar.tab`).
+- PDF selections are rebuilt from their text ranges on mouse-up (`textOnly`): dragging over a table gave a block
+  selection with NaN geometry, which crashed the selection bar.
 
 ### Split view (feat/split)
 - Each tab holds a `Workspace`: a primary reader and an optional secondary one (any CHM or PDF), plus which is active.

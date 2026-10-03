@@ -33,8 +33,6 @@ protocol ReaderModel: ObservableObject {
     /// +1 / −1 to step, 0 to reset.
     func zoom(_ step: Int)
 
-    /// Bumped by ⌘F; the window shows the sidebar and focuses its search field.
-    var searchRequest: Int { get set }
     /// Full-text search. The first call builds the book's index in the background.
     func searchText(_ query: String) async -> [FullTextIndex.PageResult]
     /// Opens the hit's page, scrolls to the match and selects it (so it can be highlighted right away).
