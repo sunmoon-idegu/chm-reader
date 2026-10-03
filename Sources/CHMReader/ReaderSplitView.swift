@@ -104,14 +104,35 @@ final class PerReaderContainer: NSViewController {
     }
 }
 
-/// Thin dividers that are still easy to grab: the draggable area extends a few points past the 1-pt line.
+/// Thin dividers that are still easy to grab: the draggable area extends past the drawn divider.
 class WideDividerSplitViewController: NSSplitViewController {
+    var grabMargin: CGFloat = 4
+
     override func splitView(
         _ splitView: NSSplitView, effectiveRect proposedEffectiveRect: NSRect, forDrawnRect drawnRect: NSRect,
         ofDividerAt dividerIndex: Int
     ) -> NSRect {
         let rect = super.splitView(splitView, effectiveRect: proposedEffectiveRect, forDrawnRect: drawnRect, ofDividerAt: dividerIndex)
-        return splitView.isVertical ? rect.insetBy(dx: -4, dy: 0) : rect.insetBy(dx: 0, dy: -4)
+        return splitView.isVertical ? rect.insetBy(dx: -grabMargin, dy: 0) : rect.insetBy(dx: 0, dy: -grabMargin)
+    }
+}
+
+/// A grip drawn over the divider between two reading panes, so it's easy to see where to drag.
+/// It ignores clicks; the split view's widened divider area takes the drag.
+final class DividerGrip: NSView {
+    override func hitTest(_ point: NSPoint) -> NSView? { nil }
+
+    override func draw(_ dirtyRect: NSRect) {
+        let palette = ChromePalette(ReadingPrefs().style)
+        let capsule = NSBezierPath(roundedRect: bounds.insetBy(dx: 0.5, dy: 0.5), xRadius: bounds.width / 2, yRadius: bounds.width / 2)
+        NSColor(palette.background).setFill()
+        capsule.fill()
+        NSColor(palette.separator).setStroke()
+        capsule.lineWidth = 1
+        capsule.stroke()
+        let bar = NSRect(x: bounds.midX - 1, y: bounds.midY - 12, width: 2, height: 24)
+        NSColor(palette.secondary).withAlphaComponent(0.7).setFill()
+        NSBezierPath(roundedRect: bar, xRadius: 1, yRadius: 1).fill()
     }
 }
 
@@ -154,10 +175,35 @@ final class PaneContainer: WideDividerSplitViewController {
         }
     }
 
+    private let grip = DividerGrip()
+
     override func viewDidLoad() {
         super.viewDidLoad()
         splitView.isVertical = true
         splitView.dividerStyle = .thin
+        grabMargin = 8
+    }
+
+    override func viewDidLayout() {
+        super.viewDidLayout()
+        placeGrip()
+    }
+
+    override func splitViewDidResizeSubviews(_ notification: Notification) {
+        super.splitViewDidResizeSubviews(notification)
+        placeGrip()
+    }
+
+    /// Centers the grip on the divider between the panes (hidden with one pane).
+    private func placeGrip() {
+        let arranged = splitView.arrangedSubviews
+        guard arranged.count == 2 else { return grip.removeFromSuperview() }
+        if grip.superview !== splitView || splitView.subviews.last !== grip {
+            splitView.addSubview(grip, positioned: .above, relativeTo: nil)
+        }
+        let x = arranged[0].frame.maxX + splitView.dividerThickness / 2
+        grip.frame = NSRect(x: x - 5, y: splitView.bounds.midY - 26, width: 10, height: 52)
+        grip.needsDisplay = true
     }
 
     override func viewDidAppear() {
@@ -198,6 +244,7 @@ final class PaneContainer: WideDividerSplitViewController {
     @MainActor
     func sync() {
         guard let workspace else { return }
+        grip.needsDisplay = true  // follows the reading theme
         let readers = workspace.readers
         let count = readers.count + (workspace.choosingSecondary ? 1 : 0)
         while panes.count < count {

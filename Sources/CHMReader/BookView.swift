@@ -76,19 +76,30 @@ struct BookView: View {
             }
     }
 
-    /// Left: contents, search. Right, in three groups: how the page looks (zoom, 版面) · the sticky-note tool ·
-    /// the panes (split, notes). Highlighting lives in the bar that appears over selected text.
+    /// Left: contents. Right, each group in its own capsule: search · sticky note · how the page looks
+    /// (zoom, 版面) · the panes (split, notes). Highlighting lives in the bar that appears over selected text.
     @ToolbarContentBuilder
     private var toolbar: some ToolbarContent {
-        ToolbarItemGroup(placement: .navigation) {
+        ToolbarItem(placement: .navigation) {
             Button { showSidebar.toggle() } label: { Label("目錄", systemImage: "sidebar.left") }
                 .help(showSidebar ? "隱藏目錄 (⌃⌘S)" : "顯示目錄 (⌃⌘S)")
                 .keyboardShortcut("s", modifiers: [.command, .control])
+        }
+        ToolbarItem(placement: .primaryAction) {
             Button { workspace.find.isShown ? workspace.find.close() : workspace.find.show() } label: {
                 Label("搜尋", systemImage: "magnifyingglass")
             }
             .help("搜尋內文 (⌘F)")
         }
+        groupGap
+        ToolbarItem(placement: .primaryAction) {
+            Toggle(isOn: Binding(get: { model.isPlacingNote }, set: { on in var m = model; m.isPlacingNote = on })) {
+                Label("便利貼", systemImage: "note.text.badge.plus")
+            }
+            .toggleStyle(.button)
+            .help(model.isPlacingNote ? "點頁面任一處放上便利貼（Esc 取消）" : "便利貼：按下後點頁面任一處加上筆記 (⌥⌘N)")
+        }
+        groupGap
         ToolbarItemGroup(placement: .primaryAction) {
             Button { workspace.zoom(-1) } label: {
                 Label(model.isReflowable ? "縮小字級" : "縮小", systemImage: model.isReflowable ? "textformat.size.smaller" : "minus.magnifyingglass")
@@ -103,14 +114,6 @@ struct BookView: View {
                 .popover(isPresented: $showTypography, arrowEdge: .bottom) {
                     TypographyPanel(themeOnly: !model.isReflowable).frame(width: 380).padding(20)
                 }
-        }
-        groupGap
-        ToolbarItem(placement: .primaryAction) {
-            Toggle(isOn: Binding(get: { model.isPlacingNote }, set: { on in var m = model; m.isPlacingNote = on })) {
-                Label("便利貼", systemImage: "note.text.badge.plus")
-            }
-            .toggleStyle(.button)
-            .help(model.isPlacingNote ? "點頁面任一處放上便利貼（Esc 取消）" : "便利貼：按下後點頁面任一處加上筆記 (⌥⌘N)")
         }
         groupGap
         ToolbarItemGroup(placement: .primaryAction) {

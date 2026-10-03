@@ -83,7 +83,6 @@ has to guess. Pages get `lang="zh-Hant"` so the system picks Traditional Chinese
 - UI: `FindBar` floats at the top of the page area (⌘F or the toolbar magnifier). `FindSession` (one per tab, in
   `Workspace`) flattens all hits in book order, starts at the current page, and steps with ↩ / ⇧↩, ↑ ↓, ⌘G / ⇧⌘G;
   it re-searches when the active pane changes. PDF jumps leave ~150 pt above the match so the bar doesn't cover it.
-  The sidebar field only filters 目錄 / 索引 titles.
 - Sidebar tabs: 目錄, 索引 (CHM with `.hhk`), 縮覽圖 (PDF: `page.thumbnail`, cached, rendered lazily); the chosen
   tab is remembered (`sidebar.tab`).
 - PDF selections are rebuilt from their text ranges on mouse-up (`textOnly`): dragging over a table gave a block
@@ -96,8 +95,9 @@ has to guess. Pages get `lang="zh-Hant"` so the system picks Traditional Chinese
   `NSSplitViewController` with one or two panes. Sidebar and notes containers keep one hosted view per reader,
   so search text and scroll survive switching panes. A local mouse-down monitor makes the clicked pane active.
 - ⌘\ toggles the split; the new right pane first shows a chooser (recent files, open, drop) like a new tab's
-  welcome screen. Each pane's header can open another file. Dividers keep a 1-pt line but a ~10-pt grab area
-  (`WideDividerSplitViewController` widens the effective rect);
+  welcome screen. Each pane's header can open another file. Dividers keep a 1-pt line but a wider grab area
+  (`WideDividerSplitViewController` widens the effective rect; ~17 pt between panes, where `DividerGrip`
+  draws a grip). Replacing `NSSplitViewController.splitView` with a subclass crashes AppKit, hence the overlay;
   「在另一側開啟」 in the contents and notes context menus opens a page in the other pane.
 
 ### Tabs

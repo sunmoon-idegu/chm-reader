@@ -3,7 +3,7 @@ import PDFKit
 import SwiftUI
 
 /// Left panel: tabs for the table of contents, the keyword index (CHM books that have one) and page
-/// thumbnails (PDF). Contents and index can be filtered by title; full-text search is the find bar (⌘F).
+/// thumbnails (PDF). Searching is the find bar (⌘F).
 struct SidebarView<R: ReaderModel>: View {
     @ObservedObject var reader: R
     /// Set for PDFs, which get the 縮覽圖 tab.
@@ -11,8 +11,6 @@ struct SidebarView<R: ReaderModel>: View {
     private var prefs = ReadingPrefs()
     /// Remembered across books; a book without that tab shows 目錄.
     @AppStorage("sidebar.tab") private var savedTab = Tab.contents
-    @State private var query = ""
-    @FocusState private var filterFocused: Bool
 
     enum Tab: String, Hashable { case contents, index, thumbnails }
 
@@ -32,47 +30,31 @@ struct SidebarView<R: ReaderModel>: View {
     var body: some View {
         let palette = ChromePalette(prefs.style)
         VStack(alignment: .leading, spacing: 0) {
-            VStack(alignment: .leading, spacing: 10) {
-                if tabs.count > 1 {
-                    Picker("", selection: Binding(get: { tab }, set: { savedTab = $0 })) {
-                        ForEach(tabs, id: \.0) { Text($0.1).tag($0.0) }
-                    }
-                    .pickerStyle(.segmented)
-                    .labelsHidden()
+            if tabs.count > 1 {
+                Picker("", selection: Binding(get: { tab }, set: { savedTab = $0 })) {
+                    ForEach(tabs, id: \.0) { Text($0.1).tag($0.0) }
                 }
-                if tab != .thumbnails {
-                    SearchField(text: $query, prompt: tab == .index ? "篩選索引" : "篩選目錄", palette: palette)
-                        .focused($filterFocused)
-                        .onExitCommand { query = ""; filterFocused = false }
-                }
-            }
-            .padding(.horizontal, 14)
-            .padding(.top, 14)
-            .padding(.bottom, 10)
+                .pickerStyle(.segmented)
+                .labelsHidden()
+                .fixedSize()
+                .frame(maxWidth: .infinity)
+                .padding(.top, 14)
+                .padding(.bottom, 10)
 
-            Rectangle().fill(palette.separator).frame(height: 1)
+                Rectangle().fill(palette.separator).frame(height: 1)
+            }
 
             switch tab {
             case .thumbnails:
                 if let document { ThumbnailList(reader: reader, document: document, palette: palette) }
             case .index:
-                FlatEntries(reader: reader, rows: filtered(reader.keywordIndex), palette: palette)
+                FlatEntries(reader: reader, rows: reader.keywordIndex.flatMap { $0.flattened() }, palette: palette)
             case .contents:
-                if query.isEmpty {
-                    TOCTree(reader: reader, palette: palette)
-                } else {
-                    FlatEntries(reader: reader, rows: filtered(reader.toc), palette: palette)
-                }
+                TOCTree(reader: reader, palette: palette)
             }
         }
         .background(palette.background)
         .environment(\.colorScheme, palette.colorScheme)
-    }
-
-    private func filtered(_ entries: [SitemapEntry]) -> [(entry: SitemapEntry, depth: Int)] {
-        let all = entries.flatMap { $0.flattened() }
-        guard !query.isEmpty else { return all }
-        return all.filter { $0.entry.name.localizedCaseInsensitiveContains(query) }.map { ($0.entry, 0) }
     }
 }
 
@@ -159,33 +141,6 @@ private struct PageThumbnail: View {
             Self.cache.setObject(rendered, forKey: page)
             image = rendered
         }
-    }
-}
-
-struct SearchField: View {
-    @Binding var text: String
-    let prompt: String
-    let palette: ChromePalette
-
-    var body: some View {
-        HStack(spacing: 6) {
-            Image(systemName: "magnifyingglass")
-                .font(.system(size: 12))
-                .foregroundStyle(palette.secondary)
-            TextField(prompt, text: $text)
-                .textFieldStyle(.plain)
-                .font(.system(size: 13))
-            if !text.isEmpty {
-                Button { text = "" } label: {
-                    Image(systemName: "xmark.circle.fill").foregroundStyle(palette.secondary)
-                }
-                .buttonStyle(.plain)
-            }
-        }
-        .padding(.horizontal, 9)
-        .padding(.vertical, 6)
-        .background(palette.card, in: RoundedRectangle(cornerRadius: 7))
-        .overlay(RoundedRectangle(cornerRadius: 7).stroke(palette.separator))
     }
 }
 
