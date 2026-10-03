@@ -1,4 +1,3 @@
-import AppKit
 import Foundation
 import SwiftData
 
@@ -86,32 +85,4 @@ enum AnnotationStore {
             fatalError("無法開啟筆記資料庫：\(error)")
         }
     }()
-}
-
-enum NotesExporter {
-    static func markdown(bookTitle: String, annotations: [Annotation]) -> String {
-        var out = "# \(bookTitle)\n\n"
-        var lastPage: String?
-        for a in annotations {
-            if a.pagePath != lastPage {
-                out += "## \(a.pageTitle.isEmpty ? a.pagePath : a.pageTitle)\n\n"
-                lastPage = a.pagePath
-            }
-            if a.isSticky {
-                out += "📝 便利貼\n\n"
-            } else {
-                out += a.exact.split(separator: "\n").map { "> \($0)" }.joined(separator: "\n") + "\n\n"
-            }
-            if !a.note.isEmpty { out += a.note + "\n\n" }
-        }
-        return out
-    }
-
-    @MainActor static func export(bookTitle: String, annotations: [Annotation]) {
-        let panel = NSSavePanel()
-        panel.nameFieldStringValue = "\(bookTitle) 筆記.md"
-        panel.allowedContentTypes = [.init(filenameExtension: "md") ?? .plainText]
-        guard panel.runModal() == .OK, let url = panel.url else { return }
-        try? markdown(bookTitle: bookTitle, annotations: annotations).write(to: url, atomically: true, encoding: .utf8)
-    }
 }

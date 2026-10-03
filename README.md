@@ -25,7 +25,7 @@
 - **目錄側邊欄**：依章節瀏覽，自動標示目前位置；沒有目錄檔的書會依頁面標題自動整理。
 - **便利貼**：按工具列的便利貼（⌥⌘N），再點頁面任一處，就能在那裡貼上筆記。
 - **全文搜尋**：⌘F 搜尋整本書的內文，結果依頁面列出並標示上下文，點一下就跳到該處。
-- **螢光標記與筆記**：選字後從浮出的工具列複製、螢光標記或加筆記（⌥⌘H），點螢光文字即可在右側筆記欄寫筆記，自動儲存，⌫ 刪除、⌘Z 復原；可看本頁或全書筆記，並匯出 Markdown。
+- **螢光標記與筆記**：選字後從浮出的工具列複製、螢光標記或加筆記（⌥⌘H），點螢光文字即可在右側筆記欄寫筆記，自動儲存，⌫ 刪除、⌘Z 復原；可看本頁或全書筆記。
 - **舒適排版**：蘋方、宋體、楷體；字級（⌘= / ⌘-）、行高、段距、版面寬度；白、米黃、護眼綠、夜間或自訂背景。
 - **分頁與分割畫面**：⌘T 開新分頁；⌘\\ 在同一分頁並排閱讀兩本書（或同一本書的兩處），可各自開啟 CHM 或 PDF。
 - **PDF**：同樣的目錄、螢光標記、筆記與分頁，目錄取自 PDF 書籤；可縮放，原始檔案不會被修改。
@@ -37,7 +37,7 @@
 - Table-of-contents sidebar; books without a `.hhc` get a TOC built from their internal topic tables.
 - Sticky notes (⌥⌘N): click the tool, then anywhere on the page.
 - Full-text search (⌘F) across the whole book, with snippets; click a result to jump to the match.
-- Highlights (⌥⌘H) with a notes panel: per-page or whole-book view, autosave, Markdown export.
+- Highlights (⌥⌘H) with a notes panel: per-page or whole-book view, autosave.
 - Typography controls: font, size, line height, paragraph spacing, page width, and themes including night mode.
 - PDF support: outline sidebar, highlights and notes, zoom; the PDF file itself is never modified.
 - Split view (⌘\\): two books side by side in one tab; native macOS tabs; sandboxed, no data collection.

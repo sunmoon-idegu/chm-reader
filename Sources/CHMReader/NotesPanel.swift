@@ -59,17 +59,11 @@ struct NotesPanel<R: ReaderModel>: View {
 
             if !all.isEmpty {
                 Rectangle().fill(palette.separator).frame(height: 1)
-                HStack {
-                    Text("全書共 \(all.count) 則").font(.caption).foregroundStyle(palette.secondary)
-                    Spacer()
-                    Button("匯出 Markdown…") {
-                        NotesExporter.export(bookTitle: reader.bookTitle, annotations: all)
-                    }
-                    .buttonStyle(.borderless)
+                Text("全書共 \(all.count) 則")
                     .font(.caption)
-                    .foregroundStyle(palette.accent)
-                }
-                .padding(.horizontal, 14)
+                    .foregroundStyle(palette.secondary)
+                    .frame(maxWidth: .infinity, alignment: .leading)
+                    .padding(.horizontal, 14)
                 .padding(.vertical, 8)
             }
         }

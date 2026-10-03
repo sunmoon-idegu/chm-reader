@@ -115,7 +115,7 @@ has to guess. Pages get `lang="zh-Hant"` so the system picks Traditional Chinese
   floating glass panel, and SwiftUI can't smoothly animate a `WKWebView`'s frame; `NSSplitViewItem.animator().isCollapsed` can.
 - Each annotation stores: book key (SHA-256 of file size + first 64 KB, so moving/renaming the file keeps notes),
   page path, quote anchor, color, note, timestamps.
-- Notes tab lists all annotations for the book; click to jump; export to Markdown.
+- Notes tab lists all annotations for the book; click to jump.
 
 ### Index page
 - **目錄** — `.hhc` sitemap as an expandable outline.
