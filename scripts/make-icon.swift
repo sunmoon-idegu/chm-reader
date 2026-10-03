@@ -1,5 +1,5 @@
 // Renders the app icon to a 1024×1024 PNG: swift scripts/make-icon.swift out.png
-// Sky-blue tile, white open book, one glowing yellow highlight, sparkle.
+// Sky-blue tile, white open book, one glowing yellow highlight.
 import AppKit
 
 let size = 1024
@@ -61,24 +61,6 @@ withShadow(rgb(255, 190, 30, 0.8), blur: 36) {
     rgb(255, 196, 36).setFill()
     NSBezierPath(roundedRect: NSRect(x: 552, y: 522, width: 170, height: 40), xRadius: 12, yRadius: 12).fill()
 }
-
-// Four-point sparkles.
-func sparkle(at c: NSPoint, radius r: CGFloat) -> NSBezierPath {
-    let p = NSBezierPath()
-    let k = r * 0.22
-    p.move(to: NSPoint(x: c.x, y: c.y + r))
-    p.curve(to: NSPoint(x: c.x + r, y: c.y), controlPoint1: NSPoint(x: c.x + k, y: c.y + k), controlPoint2: NSPoint(x: c.x + k, y: c.y + k))
-    p.curve(to: NSPoint(x: c.x, y: c.y - r), controlPoint1: NSPoint(x: c.x + k, y: c.y - k), controlPoint2: NSPoint(x: c.x + k, y: c.y - k))
-    p.curve(to: NSPoint(x: c.x - r, y: c.y), controlPoint1: NSPoint(x: c.x - k, y: c.y - k), controlPoint2: NSPoint(x: c.x - k, y: c.y - k))
-    p.curve(to: NSPoint(x: c.x, y: c.y + r), controlPoint1: NSPoint(x: c.x - k, y: c.y + k), controlPoint2: NSPoint(x: c.x - k, y: c.y + k))
-    return p
-}
-withShadow(NSColor.white.withAlphaComponent(0.8), blur: 24) {
-    NSColor.white.setFill()
-    sparkle(at: NSPoint(x: 730, y: 790), radius: 58).fill()
-}
-NSColor.white.withAlphaComponent(0.85).setFill()
-sparkle(at: NSPoint(x: 800, y: 712), radius: 24).fill()
 
 NSGraphicsContext.restoreGraphicsState()
 try! rep.representation(using: .png, properties: [:])!.write(to: URL(fileURLWithPath: CommandLine.arguments[1]))
