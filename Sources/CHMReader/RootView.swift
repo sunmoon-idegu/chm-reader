@@ -51,7 +51,7 @@ struct RootView: View {
                     }
                 }
                 // Same toolbar style as a book tab, so the title bar keeps its height (e.g. after the tab bar's +).
-                .navigationTitle("CHM 閱讀器")
+                .navigationTitle("閱讀器")
                 .toolbar {
                     ToolbarItem(placement: .primaryAction) {
                         Button {
@@ -112,8 +112,8 @@ struct WelcomeView: View {
             Image(systemName: "book.closed")
                 .font(.system(size: 56, weight: .light))
                 .foregroundStyle(.secondary)
-            Text("CHM 閱讀器").font(.largeTitle.weight(.semibold))
-            Button("開啟 CHM 或 PDF 檔案…") {
+            Text("閱讀器").font(.largeTitle.weight(.semibold))
+            Button("開啟 PDF 或 CHM 檔案…") {
                 if let url = RecentBooks.choose() { open(url) }
             }
             .controlSize(.large)
@@ -135,7 +135,7 @@ struct WelcomeView: View {
                 }
                 .frame(maxWidth: 360)
             }
-            Text("也可以把 .chm 或 .pdf 檔拖曳到這裡").font(.footnote).foregroundStyle(.tertiary)
+            Text("也可以把 .pdf 或 .chm 檔拖曳到這裡").font(.footnote).foregroundStyle(.tertiary)
         }
         .padding(40)
         .frame(maxWidth: .infinity, maxHeight: .infinity)

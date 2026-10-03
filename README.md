@@ -1,12 +1,12 @@
 <p align="center">
-  <img src="docs/icon.png" width="128" alt="CHM 閱讀器圖示">
+  <img src="docs/icon.png" width="128" alt="閱讀器圖示">
 </p>
 
-<h1 align="center">CHM 閱讀器</h1>
+<h1 align="center">閱讀器 - PDF &amp; CHM</h1>
 
 <p align="center">
-  專為繁體中文設計的 macOS CHM 電子書閱讀器：正確顯示 Big5 舊檔、螢光標記、隨手筆記、舒適排版。<br>
-  A macOS CHM e-book reader built for Traditional Chinese, with highlights, notes and comfortable typography.
+  macOS 上的 PDF 與 CHM 閱讀器：螢光標記、筆記、全文搜尋與並排閱讀，正確顯示繁體中文舊檔。<br>
+  A macOS reader for PDF and CHM e-books: highlights, notes, full-text search and side-by-side reading, built for Traditional Chinese.
 </p>
 
 <p align="center">
@@ -16,6 +16,8 @@
 </p>
 
 ![閱讀與筆記](app-store-asset/screenshots/1-閱讀與筆記-2560x1600.png)
+
+![並排閱讀](app-store-asset/screenshots/3-並排閱讀-2560x1600.png)
 
 ## 功能
 
@@ -71,7 +73,7 @@ The Xcode project is generated from `project.yml`; set `DEVELOPMENT_TEAM` to you
 
 ## 授權 License
 
-本專案原始碼採 [MIT 授權](LICENSE)，第三方程式與品牌說明見 [NOTICE](NOTICE)。App 名稱「CHM 閱讀器」、圖示與 App Store 素材不在授權範圍內，請勿用於其他發佈的 App。
+本專案原始碼採 [MIT 授權](LICENSE)，第三方程式與品牌說明見 [NOTICE](NOTICE)。App 名稱「閱讀器 - PDF & CHM」、圖示與 App Store 素材不在授權範圍內，請勿用於其他發佈的 App。
 This project's source code is under the [MIT License](LICENSE). The app name, icon and App Store assets are not licensed for reuse in other distributed apps.
 
 本 App 使用 [CHMLib](https://github.com/jedwing/CHMLib)（© Jed Wing），採 GNU LGPL 2.1 授權，

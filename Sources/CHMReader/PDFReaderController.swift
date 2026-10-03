@@ -6,6 +6,15 @@ import SwiftData
 /// PDFView that reports clicks on our highlights and adds 螢光標記 to the right-click menu.
 final class ReaderPDFView: PDFView {
     weak var reader: PDFReaderController?
+    /// Navigation requested before the view had a size (PDFView ignores it then); applied on first real layout.
+    var pendingPage: String?
+
+    override func layout() {
+        super.layout()
+        guard bounds.height > 0, let page = pendingPage else { return }
+        pendingPage = nil
+        DispatchQueue.main.async { [weak self] in self?.reader?.open(page) }
+    }
 
     override func mouseDown(with event: NSEvent) {
         let point = convert(event.locationInWindow, from: nil)
@@ -124,6 +133,10 @@ final class PDFReaderController: NSObject, ObservableObject, ReaderModel {
     // MARK: Navigation
 
     func open(_ page: String) {
+        guard pdfView.bounds.height > 0 else {
+            pdfView.pendingPage = page
+            return
+        }
         guard let index = Self.pageIndex(of: page), let pdfPage = document.page(at: index) else { return }
         if let y = CHMPath.fragment(page).flatMap(Double.init) {
             pdfView.go(to: PDFDestination(page: pdfPage, at: NSPoint(x: 0, y: y)))
@@ -165,7 +178,7 @@ final class PDFReaderController: NSObject, ObservableObject, ReaderModel {
                 var pages: [FullTextIndex.Page] = []
                 for i in 0..<document.pageCount {
                     pages.append(.init(id: "/page/\(i + 1)", title: self.title(forPageIndex: i),
-                                       text: document.page(at: i)?.string ?? ""))
+                                       text: document.page(at: i)?.string ?? "", joinLines: true))
                     if i % 20 == 19 { await Task.yield() }
                 }
                 return FullTextIndex(pages: pages)
@@ -272,12 +285,16 @@ final class PDFReaderController: NSObject, ObservableObject, ReaderModel {
             if !annotation.note.isEmpty { mark.contents = annotation.note }
             page.addAnnotation(mark)
         }
+        pdfView.annotationsChanged(on: page)
     }
 
     private func erase(_ annotation: Annotation) {
         guard let index = Self.pageIndex(of: annotation.pagePath), let page = document.page(at: index) else { return }
         let tag = Self.markPrefix + annotation.id.uuidString
-        for mark in page.annotations where mark.userName == tag { page.removeAnnotation(mark) }
+        let marks = page.annotations.filter { $0.userName == tag }
+        guard !marks.isEmpty else { return }
+        marks.forEach(page.removeAnnotation)
+        pdfView.annotationsChanged(on: page)
     }
 
     // MARK: Helpers

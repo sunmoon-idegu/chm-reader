@@ -6,11 +6,49 @@ public struct FullTextIndex: Sendable {
         public let id: String
         public let title: String
         public let text: String
+        /// `text` normalized for matching; `offsets[i]` is the UTF-16 offset in `text` of unit `i` here.
+        let searchText: String
+        let offsets: [Int]
 
-        public init(id: String, title: String, text: String) {
+        /// `joinLines` is for PDF text, where every visual line ends in a newline: newlines next to CJK characters
+        /// are dropped and others become spaces, so phrases that wrap across lines still match.
+        public init(id: String, title: String, text: String, joinLines: Bool = false) {
             self.id = id
             self.title = title
             self.text = text
+            (searchText, offsets) = Self.normalize(text, joinLines: joinLines)
+        }
+
+        static func normalize(_ text: String, joinLines: Bool) -> (String, [Int]) {
+            let units = Array(text.utf16)
+            var out: [UInt16] = []
+            var offsets: [Int] = []
+            out.reserveCapacity(units.count)
+            offsets.reserveCapacity(units.count)
+            func isCJK(_ u: UInt16?) -> Bool {
+                guard let u else { return false }
+                return (0x2E80...0x9FFF).contains(u) || (0xF900...0xFAFF).contains(u) || (0xFF00...0xFFEF).contains(u)
+            }
+            for (i, unit) in units.enumerated() {
+                if joinLines, unit == 0x0A || unit == 0x0D {
+                    let next = units[(i + 1)...].first { $0 != 0x0A && $0 != 0x0D && $0 != 0x20 }
+                    if isCJK(out.last) || isCJK(next) || out.last == 0x20 || out.isEmpty { continue }
+                    out.append(0x20)
+                    offsets.append(i)
+                    continue
+                }
+                // Kangxi / CJK radicals and vertical punctuation that some PDFs carry instead of the normal characters.
+                if (0x2E80...0x2FDF).contains(unit) || (0xFE10...0xFE19).contains(unit),
+                   let scalar = Unicode.Scalar(unit),
+                   let mapped = String(scalar).precomposedStringWithCompatibilityMapping.utf16.first,
+                   String(scalar).precomposedStringWithCompatibilityMapping.utf16.count == 1 {
+                    out.append(mapped)
+                } else {
+                    out.append(unit)
+                }
+                offsets.append(i)
+            }
+            return (String(decoding: out, as: UTF16.self), offsets)
         }
     }
 
@@ -19,7 +57,7 @@ public struct FullTextIndex: Sendable {
         public let pageID: String
         /// 0-based index of this match among the matches on its page.
         public let occurrence: Int
-        /// UTF-16 range of the match in the page text.
+        /// UTF-16 range of the match in the page's original text.
         public let range: NSRange
         public let before: String
         public let match: String
@@ -49,7 +87,7 @@ public struct FullTextIndex: Sendable {
         var results: [PageResult] = []
 
         for page in pages {
-            let text = page.text as NSString
+            let text = page.searchText as NSString
             var hits: [Hit] = []
             var total = 0
             var searchRange = NSRange(location: 0, length: text.length)
@@ -59,8 +97,10 @@ public struct FullTextIndex: Sendable {
                 if hits.count < hitsPerPage {
                     let beforeStart = max(0, found.location - context)
                     let afterEnd = min(text.length, NSMaxRange(found) + context)
+                    let start = page.offsets[found.location]
+                    let end = page.offsets[NSMaxRange(found) - 1] + 1
                     hits.append(Hit(
-                        pageID: page.id, occurrence: total, range: found,
+                        pageID: page.id, occurrence: total, range: NSRange(location: start, length: end - start),
                         before: Self.oneLine(text.substring(with: NSRange(location: beforeStart, length: found.location - beforeStart))),
                         match: text.substring(with: found),
                         after: Self.oneLine(text.substring(with: NSRange(location: NSMaxRange(found), length: afterEnd - NSMaxRange(found))))))

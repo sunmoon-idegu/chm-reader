@@ -5,7 +5,7 @@
 	<key>CFBundleDevelopmentRegion</key>
 	<string>zh_TW</string>
 	<key>CFBundleDisplayName</key>
-	<string>CHM 閱讀器</string>
+	<string>閱讀器</string>
 	<key>CFBundleDocumentTypes</key>
 	<array>
 		<dict>
@@ -42,7 +42,7 @@
 	<key>CFBundleInfoDictionaryVersion</key>
 	<string>6.0</string>
 	<key>CFBundleName</key>
-	<string>CHM 閱讀器</string>
+	<string>閱讀器</string>
 	<key>CFBundlePackageType</key>
 	<string>APPL</string>
 	<key>CFBundleShortVersionString</key>

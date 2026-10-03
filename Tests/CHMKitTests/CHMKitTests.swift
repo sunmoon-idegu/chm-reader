@@ -138,3 +138,22 @@ final class RealBookSearchTests: XCTestCase {
         XCTAssertFalse(results.isEmpty)
     }
 }
+
+final class PDFTextSearchTests: XCTestCase {
+    func testPhraseWrappedAcrossLinesMatches() {
+        let text = "子曰：「學而時習之，有朋自遠\n方來，不亦樂乎？」\nThe quick\nbrown fox"
+        let index = FullTextIndex(pages: [.init(id: "/page/1", title: "1", text: text, joinLines: true)])
+        let hit = try! XCTUnwrap(index.search("有朋自遠方來").first?.hits.first)
+        XCTAssertEqual(hit.match, "有朋自遠方來")
+        // The range points into the original text, newline included, so the reader can select it.
+        XCTAssertEqual((text as NSString).substring(with: hit.range), "有朋自遠\n方來")
+        XCTAssertEqual(index.search("quick brown").first?.totalHits, 1)
+    }
+
+    func testKangxiRadicalsMatchNormalCharacters() {
+        let text = "\u{2F45}來，\u{2F08}不知"   // ⽅來，⼈不知
+        let index = FullTextIndex(pages: [.init(id: "/page/1", title: "1", text: text, joinLines: true)])
+        XCTAssertEqual(index.search("方來").first?.totalHits, 1)
+        XCTAssertEqual(index.search("人不知").first?.totalHits, 1)
+    }
+}

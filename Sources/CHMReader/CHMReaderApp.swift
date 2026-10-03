@@ -27,7 +27,7 @@ struct CHMReaderApp: App {
     @NSApplicationDelegateAdaptor(AppDelegate.self) private var appDelegate
 
     var body: some Scene {
-        WindowGroup("CHM Reader", for: BookTarget.self) { $target in
+        WindowGroup("閱讀器", for: BookTarget.self) { $target in
             RootView(target: $target)
                 .frame(minWidth: 760, minHeight: 520)
                 .background(WindowTabbingConfigurator())
@@ -72,11 +72,11 @@ struct ReaderCommands: Commands {
             Button("首頁") { reader?.goHome() }
                 .keyboardShortcut("h", modifiers: [.command, .shift])
             Divider()
-            Button(reader?.isReflowable == false ? "放大" : "放大字級") { reader?.zoom(1) }
+            Button(reader?.isReflowable == false ? "放大" : "放大字級") { workspace?.zoom(1) }
                 .keyboardShortcut("=")
-            Button(reader?.isReflowable == false ? "縮小" : "縮小字級") { reader?.zoom(-1) }
+            Button(reader?.isReflowable == false ? "縮小" : "縮小字級") { workspace?.zoom(-1) }
                 .keyboardShortcut("-")
-            Button(reader?.isReflowable == false ? "符合視窗大小" : "預設字級") { reader?.zoom(0) }
+            Button(reader?.isReflowable == false ? "符合視窗大小" : "預設字級") { workspace?.zoom(0) }
                 .keyboardShortcut("0")
             Divider()
             Button(workspace?.isSplit == true ? "關閉分割畫面" : "分割畫面") { workspace?.toggleSplit() }
@@ -118,7 +118,7 @@ enum RecentBooks {
         let panel = NSOpenPanel()
         panel.allowedContentTypes = [.chm, .pdf]
         panel.allowsMultipleSelection = false
-        panel.message = "選擇要閱讀的 CHM 或 PDF 檔案"
+        panel.message = "選擇要閱讀的 PDF 或 CHM 檔案"
         return panel.runModal() == .OK ? panel.url : nil
     }
 }

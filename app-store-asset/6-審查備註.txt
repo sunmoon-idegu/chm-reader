@@ -1,0 +1,7 @@
+測試方式 / How to test
+1. 開啟任一 PDF 或 CHM 檔案（可下載示範 PDF：https://sunmoon-idegu.github.io/chm-reader/demo/論語選讀.pdf ，公有領域文本）。
+2. 選取文字後按工具列的螢光筆（⌥⌘H）標記；點螢光文字即可在右側筆記欄寫筆記。
+3. ⌘F 搜尋內文；⌘\ 開啟並排閱讀。
+
+The app needs no account. The network client entitlement is required by WKWebView's web content process to
+render CHM pages; the app itself makes no network requests. Files are opened read-only and never modified.

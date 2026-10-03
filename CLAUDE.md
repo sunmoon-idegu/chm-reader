@@ -1,4 +1,4 @@
-# CHM 閱讀器 (CHM Reader for macOS)
+# 閱讀器 - PDF & CHM (Reader for macOS; formerly 「CHM 閱讀器」)
 
 SwiftUI + AppKit app on the Mac App Store. Stack and design decisions: `dev-docs/TECH_STACK.md`.
 App Store details, listing text and upload history: `dev-docs/APP_STORE.md`.
@@ -9,7 +9,7 @@ App Store details, listing text and upload history: `dev-docs/APP_STORE.md`.
 - `Sources/CHMReader` — the app. `ReaderModel` is the protocol shared by `ReaderController` (CHM/WebKit) and `PDFReaderController` (PDFKit); window chrome is generic over it.
 - `project.yml` — XcodeGen spec (the `.xcodeproj` is generated and git-ignored). `Package.swift` is only for `swift test`.
 - `docs/` — public website on GitHub Pages (support + privacy policy URLs used in the listing). Must stay named `docs/`: built-in Pages hosting only serves `/` or `/docs`, and the user does not want GitHub Actions.
-- `app-store-asset/` — listing text, screenshots (2560×1600), icon. `scripts/make-icon.swift` draws the icon.
+- `app-store-asset/` — listing text, screenshots (2560×1600), icon, `demo/論語選讀.pdf` (public-domain demo, from `scripts/make-demo-pdf.swift`; also served at `docs/demo/`). `scripts/make-icon.swift` draws the icon.
 
 ## Commands
 ```sh

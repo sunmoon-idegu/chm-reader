@@ -76,6 +76,8 @@ final class Workspace: ObservableObject {
     @Published var error: String?
     /// Bumped by ⌘F; the window shows the sidebar.
     @Published private(set) var searchRequest = 0
+    /// Bumped by user zooms; the window shows the zoom toast.
+    @Published private(set) var zoomTick = 0
 
     var openInNewTab: ((URL, String) -> Void)?
     private var style: ReadingStyle?
@@ -104,6 +106,11 @@ final class Workspace: ObservableObject {
     func activate(secondary: Bool) {
         guard secondary != activeIsSecondary, !secondary || isSplit else { return }
         activeIsSecondary = secondary
+    }
+
+    func zoom(_ step: Int) {
+        model.zoom(step)
+        zoomTick += 1
     }
 
     func requestSearch() {

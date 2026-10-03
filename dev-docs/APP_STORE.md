@@ -1,4 +1,4 @@
-# Publishing CHM 閱讀器 to the Mac App Store
+# Publishing 閱讀器 - PDF & CHM to the Mac App Store
 
 ## Already done in the project
 - Xcode project generated from `project.yml` (XcodeGen), team `LV99JJMWBN`, automatic signing.
@@ -32,40 +32,20 @@ scripts/archive.sh --upload   # archive and upload to App Store Connect
 
 ## Steps only you can do (first release)
 1. **Create the app record** — appstoreconnect.apple.com → 我的 App → ＋ → 新增 App
-   - 平台 macOS · 名稱 `CHM 閱讀器` · 主要語言 繁體中文 · 套件 ID `com.yuming.chmreader` · SKU `chmreader-001`
+   - 平台 macOS · 名稱 `CHM 閱讀器`（1.1.0 起改名為「閱讀器 - PDF & CHM」）· 主要語言 繁體中文 · 套件 ID `com.yuming.chmreader` · SKU `chmreader-001`
 2. **Upload**: `scripts/archive.sh --upload` (or open `build/CHMReader.xcarchive` in Xcode Organizer → Distribute).
 3. **Fill in the listing** (text below), screenshots, privacy, price → 提交審查.
 
-## Listing text (draft)
-
-**副標題** (30 字內)：繁體中文 CHM 電子書閱讀與筆記
-
-**推廣文字**：專為中文經典與講記設計的 CHM 閱讀器——螢光標記、隨手筆記、舒適排版。
-
-**描述**：
-CHM 閱讀器讓你在 Mac 上舒適地閱讀 CHM 電子書，特別適合繁體中文的經典、講記與參考書。
-
-• 正確顯示繁體中文：自動辨識 Big5、香港增補字符集等舊編碼，不再出現亂碼
-• 目錄側邊欄：依章節瀏覽、搜尋，並自動標示目前閱讀位置
-• 螢光標記與筆記：選取文字即可標記，點標記就能在右側寫筆記；可依本頁或全書檢視，並匯出 Markdown
-• 舒適排版：蘋方、宋體、楷體字型，自由調整字級、行高、段距、版面寬度
-• 多種背景：白、米黃、護眼綠、夜間，或自訂顏色
-• 分頁閱讀：同時開啟多個頁面，互相對照
-• 記住上次閱讀位置，重新開啟就能接著讀
-• 所有資料只存在你的 Mac，不收集任何個人資訊
-
-**關鍵字** (100 字元內)：CHM,電子書,閱讀器,繁體中文,筆記,螢光筆,Big5,講記,佛經,ebook,reader,help
-
-**類別**：書籍 (Books)　次要：參考 (Reference)
-
-**版權**：© 2026 Yuming Lu
+## Listing text
+The current listing (name, subtitle, description, keywords, what's new, review notes) and screenshots live in
+`app-store-asset/`; its README maps each file to its App Store Connect field.
 
 ## App Privacy (App Store Connect → App 隱私權)
 Answer **「不收集資料」 (Data Not Collected)**.
 
 A **privacy policy URL is required**. Suggested text to host (GitHub Pages, Notion public page, etc.):
 
-> CHM 閱讀器不收集、儲存或傳送任何個人資料。你開啟的檔案、螢光標記與筆記只儲存在你的 Mac 上，
+> 閱讀器 - PDF & CHM 不收集、儲存或傳送任何個人資料。你開啟的檔案、螢光標記與筆記只儲存在你的 Mac 上，
 > 不會上傳到任何伺服器。本 App 不含廣告、分析或追蹤工具。
 > CHM Reader does not collect, store, or transmit any personal data. Files you open, highlights and notes
 > are stored only on your Mac. The app contains no ads, analytics, or tracking.

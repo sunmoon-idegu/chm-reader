@@ -22,8 +22,6 @@ struct BookView: View {
         let panes = workspace.readers.map { "\($0.id.hashValue)" }.joined(separator: ",")
         return "\(panes)|\(workspace.activeIsSecondary)|\(String(describing: workspace.loadingPane))|\(model.bookTitle)"
     }
-    /// Zoom label tied to the active pane, so switching panes doesn't flash the zoom toast.
-    private var zoomKey: String { "\(workspace.active.id.hashValue)|\(model.zoomLabel)" }
 
     var body: some View {
         ReaderSplitView(workspace: workspace, showLeft: showSidebar, showRight: model.showNotePanel, revision: layoutRevision)
@@ -57,8 +55,9 @@ struct BookView: View {
             }
             .onChange(of: prefs.style) { _, style in workspace.apply(style: style) }
             .onChange(of: workspace.searchRequest) { _, _ in showSidebar = true }
-            .onChange(of: zoomKey) { old, new in
-                guard !showTypography, old.split(separator: "|").first == new.split(separator: "|").first else { return }
+            // Only zooms the user asked for; a PDF settling its auto-fit scale shouldn't flash the toast.
+            .onChange(of: workspace.zoomTick) { _, _ in
+                guard !showTypography else { return }
                 withAnimation { showSizeToast = true }
                 toastTask?.cancel()
                 toastTask = Task {
@@ -86,11 +85,11 @@ struct BookView: View {
             .help(model.hasSelection ? "螢光標記選取的文字 (⌥⌘H)；點標記可寫筆記、改顏色" : "請先選取文字，再螢光標記")
 
             ControlGroup {
-                Button { model.zoom(-1) } label: {
+                Button { workspace.zoom(-1) } label: {
                     Label(model.isReflowable ? "縮小字級" : "縮小", systemImage: model.isReflowable ? "textformat.size.smaller" : "minus.magnifyingglass")
                 }
                 .help(model.isReflowable ? "縮小字級 (⌘-)" : "縮小 (⌘-)")
-                Button { model.zoom(1) } label: {
+                Button { workspace.zoom(1) } label: {
                     Label(model.isReflowable ? "放大字級" : "放大", systemImage: model.isReflowable ? "textformat.size.larger" : "plus.magnifyingglass")
                 }
                 .help(model.isReflowable ? "放大字級 (⌘=)" : "放大 (⌘=)")
