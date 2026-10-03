@@ -23,7 +23,14 @@ final class ReaderPDFView: PDFView {
             reader?.annotationClicked(id)
             return
         }
+        // Clicking elsewhere lets go of the selected note (so ⌫ no longer targets it).
+        if reader?.selectedAnnotation != nil { reader?.selectedAnnotation = nil }
         super.mouseDown(with: event)
+    }
+
+    override func mouseUp(with event: NSEvent) {
+        super.mouseUp(with: event)
+        reader?.selectionEnded()
     }
 
     override func menu(for event: NSEvent) -> NSMenu? {
@@ -67,7 +74,6 @@ final class PDFReaderController: NSObject, ObservableObject, ReaderModel {
     let modelContext: ModelContext
     let toc: [SitemapEntry]
     let keywordIndex: [SitemapEntry] = []
-    let homePage = "/page/1"
     let isReflowable = false
 
     @Published private(set) var currentPage = "/page/1"
@@ -75,6 +81,7 @@ final class PDFReaderController: NSObject, ObservableObject, ReaderModel {
     @Published private(set) var hasSelection = false
     @Published private(set) var scalePercent = 100
     @Published var selectedAnnotation: Annotation?
+    var noteToFocus: UUID?
     @Published var showNotePanel = false
     var openInNewTab: ((String) -> Void)?
     var openBeside: ((String) -> Void)?
@@ -83,6 +90,7 @@ final class PDFReaderController: NSObject, ObservableObject, ReaderModel {
         didSet {
             guard isPlacingNote != oldValue else { return }
             if isPlacingNote {
+                selectionBar.hide()
                 placementOverlay.reader = self
                 placementOverlay.frame = pdfView.bounds
                 placementOverlay.autoresizingMask = [.width, .height]
@@ -95,6 +103,10 @@ final class PDFReaderController: NSObject, ObservableObject, ReaderModel {
         }
     }
     private let placementOverlay = NotePlacementOverlay()
+    private lazy var selectionBar = SelectionBar(
+        copy: { [weak self] in self?.copySelection() },
+        highlight: { [weak self] in self?.highlightSelection(thenNote: false) },
+        note: { [weak self] in self?.highlightSelection(thenNote: true) })
     private var searchIndex: Task<FullTextIndex, Never>?
 
     private let initialPage: String
@@ -144,6 +156,12 @@ final class PDFReaderController: NSObject, ObservableObject, ReaderModel {
         open(initialPage)
         pageChanged()
         scaleChanged()
+        // Keep the selection bar on its text while scrolling.
+        if let clip = pdfView.documentView?.enclosingScrollView?.contentView {
+            clip.postsBoundsChangedNotifications = true
+            NotificationCenter.default.addObserver(
+                self, selector: #selector(moveSelectionBar), name: NSView.boundsDidChangeNotification, object: clip)
+        }
     }
 
     func apply(style: ReadingStyle) {
@@ -178,8 +196,6 @@ final class PDFReaderController: NSObject, ObservableObject, ReaderModel {
         }
     }
 
-    func goHome() { open(homePage) }
-
     /// Places a sticky note at a point in PDF-view coordinates.
     func placeSticky(at point: NSPoint) {
         isPlacingNote = false
@@ -197,6 +213,7 @@ final class PDFReaderController: NSObject, ObservableObject, ReaderModel {
         modelContext.insert(note)
         try? modelContext.save()
         draw(note)
+        noteToFocus = note.id
         selectedAnnotation = note
         showNotePanel = true
     }
@@ -212,10 +229,29 @@ final class PDFReaderController: NSObject, ObservableObject, ReaderModel {
     @objc private func selectionChanged() {
         let text = pdfView.currentSelection?.string ?? ""
         hasSelection = !text.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
+        if !hasSelection { selectionBar.hide() }
     }
 
     @objc private func scaleChanged() {
         scalePercent = Int((pdfView.scaleFactor * 100).rounded())
+        moveSelectionBar()
+    }
+
+    /// After a mouse-up: offer the selection bar if text is selected.
+    func selectionEnded() {
+        guard hasSelection, !isPlacingNote, let rect = selectionRect() else { return }
+        selectionBar.show(around: rect, in: pdfView)
+    }
+
+    @objc private func moveSelectionBar() {
+        guard selectionBar.isShown else { return }
+        if let rect = selectionRect() { selectionBar.show(around: rect, in: pdfView) } else { selectionBar.hide() }
+    }
+
+    /// The selection's bounds on its first page, in PDF-view coordinates.
+    private func selectionRect() -> NSRect? {
+        guard let selection = pdfView.currentSelection, let page = selection.pages.first else { return nil }
+        return pdfView.convert(selection.bounds(for: page), from: page)
     }
 
     private func title(forPageIndex index: Int) -> String {
@@ -253,7 +289,13 @@ final class PDFReaderController: NSObject, ObservableObject, ReaderModel {
 
     // MARK: Highlights
 
-    func highlightSelection() {
+    func copySelection() {
+        pdfView.copy(nil)
+        selectionBar.hide()
+    }
+
+    func highlightSelection(thenNote: Bool) {
+        selectionBar.hide()
         guard let selection = pdfView.currentSelection, let page = selection.pages.first else { return }
         // A highlight is anchored to one page; selections spanning pages keep their first-page part.
         let range = selection.range(at: 0, on: page)
@@ -274,6 +316,10 @@ final class PDFReaderController: NSObject, ObservableObject, ReaderModel {
         try? modelContext.save()
         draw(annotation)
         pdfView.clearSelection()
+        if thenNote {
+            noteToFocus = annotation.id
+            showNotePanel = true
+        }
         selectedAnnotation = annotation
     }
 
@@ -288,6 +334,12 @@ final class PDFReaderController: NSObject, ObservableObject, ReaderModel {
         if selectedAnnotation?.id == annotation.id { selectedAnnotation = nil }
         modelContext.delete(annotation)
         try? modelContext.save()
+    }
+
+    func restore(_ annotation: Annotation) {
+        modelContext.insert(annotation)
+        try? modelContext.save()
+        draw(annotation)
     }
 
     func reveal(_ annotation: Annotation) {

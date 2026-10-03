@@ -84,7 +84,10 @@ final class ReaderController: NSObject, ObservableObject, WKNavigationDelegate, 
     @Published private(set) var pageTitle = ""
     @Published var selectedAnnotation: Annotation?
     @Published var showNotePanel = false
-    @Published private(set) var hasSelection = false
+    @Published private(set) var hasSelection = false {
+        didSet { if !hasSelection { selectionBar.hide() } }
+    }
+    var noteToFocus: UUID?
 
     var openInNewTab: ((String) -> Void)?
     var openBeside: ((String) -> Void)?
@@ -93,6 +96,7 @@ final class ReaderController: NSObject, ObservableObject, WKNavigationDelegate, 
         didSet {
             guard isPlacingNote != oldValue else { return }
             let on = isPlacingNote
+            if on { selectionBar.hide() }
             Task { _ = await js("chmReader.setPlacing(on)", ["on": on]) }
         }
     }
@@ -100,6 +104,10 @@ final class ReaderController: NSObject, ObservableObject, WKNavigationDelegate, 
     private var pendingFind: (query: String, occurrence: Int)?
     private var style: ReadingStyle?
     private var pendingReveal: UUID?
+    private lazy var selectionBar = SelectionBar(
+        copy: { [weak self] in self?.copySelection() },
+        highlight: { [weak self] in self?.highlightSelection(thenNote: false) },
+        note: { [weak self] in self?.highlightSelection(thenNote: true) })
 
     private var lastPageKey: String { "lastPage.\(book.key)" }
 
@@ -127,7 +135,8 @@ final class ReaderController: NSObject, ObservableObject, WKNavigationDelegate, 
         webView.reader = self
         webView.navigationDelegate = self
         webView.uiDelegate = self
-        webView.allowsBackForwardNavigationGestures = true
+        // No swipe back/forward: a sideways scroll on a wide page shouldn't turn it.
+        webView.allowsBackForwardNavigationGestures = false
         webView.allowsMagnification = true
     }
 
@@ -150,7 +159,7 @@ final class ReaderController: NSObject, ObservableObject, WKNavigationDelegate, 
         webView.load(URLRequest(url: CHMSchemeHandler.url(for: resolved)))
     }
 
-    func goHome() { open(book.defaultTopic) }
+    private func goHome() { open(book.defaultTopic) }
 
     var currentPage: String { CHMPath.stripFragment(currentPath) }
 
@@ -184,6 +193,7 @@ final class ReaderController: NSObject, ObservableObject, WKNavigationDelegate, 
 
     func webView(_ webView: WKWebView, didCommit navigation: WKNavigation!) {
         hasSelection = false
+        selectionBar.hide()
         isPlacingNote = false
         syncState()
     }
@@ -286,7 +296,13 @@ final class ReaderController: NSObject, ObservableObject, WKNavigationDelegate, 
         }
     }
 
-    func highlightSelection() {
+    func copySelection() {
+        NSApp.sendAction(#selector(NSText.copy(_:)), to: webView, from: nil)
+        selectionBar.hide()
+    }
+
+    func highlightSelection(thenNote: Bool) {
+        selectionBar.hide()
         Task {
             guard let anchor = await js("return chmReader.capture()") as? [String: Any],
                   let exact = anchor["exact"] as? String,
@@ -302,6 +318,10 @@ final class ReaderController: NSObject, ObservableObject, WKNavigationDelegate, 
             modelContext.insert(annotation)
             try? modelContext.save()
             _ = await js("chmReader.apply(a); chmReader.clearSelection()", ["a": annotation.jsPayload])
+            if thenNote {
+                noteToFocus = annotation.id
+                showNotePanel = true
+            }
             selectedAnnotation = annotation
         }
     }
@@ -315,8 +335,20 @@ final class ReaderController: NSObject, ObservableObject, WKNavigationDelegate, 
         modelContext.insert(note)
         try? modelContext.save()
         Task { _ = await js("chmReader.apply(a)", ["a": note.jsPayload]) }
+        noteToFocus = note.id
         selectedAnnotation = note
         showNotePanel = true
+    }
+
+    /// Shows the action bar over the selection; `rect` is in CSS pixels of the page's viewport.
+    private func showSelectionBar(_ rect: [String: Any]) {
+        let value = { (key: String) in CGFloat((rect[key] as? NSNumber)?.doubleValue ?? 0) }
+        let scale = webView.magnification
+        let (x, y, w, h) = (value("x") * scale, value("y") * scale, value("w") * scale, value("h") * scale)
+        let frame = webView.isFlipped
+            ? NSRect(x: x, y: y, width: w, height: h)
+            : NSRect(x: x, y: webView.bounds.height - y - h, width: w, height: h)
+        selectionBar.show(around: frame, in: webView)
     }
 
     func refreshMark(_ annotation: Annotation) {
@@ -335,6 +367,14 @@ final class ReaderController: NSObject, ObservableObject, WKNavigationDelegate, 
         modelContext.delete(annotation)
         try? modelContext.save()
         Task { _ = await js("chmReader.remove(id)", ["id": id]) }
+    }
+
+    func restore(_ annotation: Annotation) {
+        modelContext.insert(annotation)
+        try? modelContext.save()
+        if annotation.pagePath == currentPage {
+            Task { _ = await js("chmReader.apply(a)", ["a": annotation.jsPayload]) }
+        }
     }
 
     func reveal(_ annotation: Annotation) {
@@ -369,6 +409,13 @@ final class ReaderController: NSObject, ObservableObject, WKNavigationDelegate, 
             return
         case "placingCancelled":
             isPlacingNote = false
+            return
+        case "selectionEnded", "selectionMoved":
+            if let rect = body["rect"] as? [String: Any], !isPlacingNote { showSelectionBar(rect) }
+            return
+        case "pageClicked":
+            // Clicking elsewhere on the page lets go of the selected note (so ⌫ no longer targets it).
+            if selectedAnnotation != nil { selectedAnnotation = nil }
             return
         case "placeSticky":
             placeSticky(at: (body["start"] as? NSNumber)?.intValue ?? 0,

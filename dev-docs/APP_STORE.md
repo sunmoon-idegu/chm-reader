@@ -55,7 +55,7 @@ Required: at least one, 16:10, e.g. 2880×1800 or 1440×900. Show: a page with h
 the typography popover; the night theme.
 
 ## Review notes (App Review Information → 備註)
-> 測試方式：開啟任何 .chm 檔（例如 Windows 說明檔）。選取文字後按工具列螢光筆或 ⌥⌘H 標記，
+> 測試方式：開啟任何 .chm 檔（例如 Windows 說明檔）。選取文字後從浮出的工具列或 ⌥⌘H 標記，
 > 點螢光文字可在右側筆記欄寫筆記。The app needs no account or network access.
 > Network client entitlement is required by WKWebView's web-content process; the app makes no requests.
 

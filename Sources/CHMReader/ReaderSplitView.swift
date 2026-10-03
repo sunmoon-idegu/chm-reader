@@ -20,7 +20,7 @@ struct ReaderSplitView: NSViewControllerRepresentable {
     func makeCoordinator() -> Coordinator { Coordinator() }
 
     func makeNSViewController(context: Context) -> NSSplitViewController {
-        let split = NSSplitViewController()
+        let split = WideDividerSplitViewController()
         split.splitView.dividerStyle = .thin
         let c = context.coordinator
         c.pages.workspace = workspace
@@ -65,7 +65,7 @@ struct ReaderSplitView: NSViewControllerRepresentable {
     }
 
     static func dismantleNSViewController(_ split: NSSplitViewController, coordinator: Coordinator) {
-        coordinator.pages.stopTrackingClicks()
+        coordinator.pages.stopTrackingEvents()
     }
 
     private func sync(_ c: Coordinator) {
@@ -104,12 +104,25 @@ final class PerReaderContainer: NSViewController {
     }
 }
 
+/// Thin dividers that are still easy to grab: the draggable area extends a few points past the 1-pt line.
+class WideDividerSplitViewController: NSSplitViewController {
+    override func splitView(
+        _ splitView: NSSplitView, effectiveRect proposedEffectiveRect: NSRect, forDrawnRect drawnRect: NSRect,
+        ofDividerAt dividerIndex: Int
+    ) -> NSRect {
+        let rect = super.splitView(splitView, effectiveRect: proposedEffectiveRect, forDrawnRect: drawnRect, ofDividerAt: dividerIndex)
+        return splitView.isVertical ? rect.insetBy(dx: -4, dy: 0) : rect.insetBy(dx: 0, dy: -4)
+    }
+}
+
 /// The page area: one pane, or two side by side (a nested NSSplitViewController, which sizes added panes
-/// properly). Each pane gets a header bar while split; the clicked pane becomes active.
-final class PaneContainer: NSSplitViewController {
+/// properly). Each pane gets a header bar while split; the clicked pane becomes active. Right after splitting,
+/// the right pane asks which file to open.
+final class PaneContainer: WideDividerSplitViewController {
     weak var workspace: Workspace?
     private var panes: [Pane] = []
-    private var clickMonitor: Any?
+    private var eventMonitor: Any?
+    private var chooser: NSView?
 
     final class Pane: NSView {
         let header: NSHostingView<AnyView>
@@ -149,16 +162,29 @@ final class PaneContainer: NSSplitViewController {
 
     override func viewDidAppear() {
         super.viewDidAppear()
-        guard clickMonitor == nil else { return }
-        clickMonitor = NSEvent.addLocalMonitorForEvents(matching: [.leftMouseDown, .rightMouseDown]) { [weak self] event in
-            self?.activatePane(at: event)
+        guard eventMonitor == nil else { return }
+        eventMonitor = NSEvent.addLocalMonitorForEvents(matching: [.leftMouseDown, .rightMouseDown, .keyDown]) { [weak self] event in
+            guard let self else { return event }
+            if event.type == .keyDown { return self.deleteSelectedNote(event) ? nil : event }
+            self.activatePane(at: event)
             return event
         }
     }
 
-    func stopTrackingClicks() {
-        if let clickMonitor { NSEvent.removeMonitor(clickMonitor) }
-        clickMonitor = nil
+    func stopTrackingEvents() {
+        if let eventMonitor { NSEvent.removeMonitor(eventMonitor) }
+        eventMonitor = nil
+    }
+
+    /// ⌫ / ⌦ deletes the selected note, unless the user is typing somewhere (the note editor, the search field).
+    @MainActor
+    private func deleteSelectedNote(_ event: NSEvent) -> Bool {
+        guard event.window === view.window, event.keyCode == 51 || event.keyCode == 117,
+              event.modifierFlags.intersection([.command, .option, .control, .shift]).isEmpty,
+              !(view.window?.firstResponder is NSText),
+              let model = workspace?.model, let note = model.selectedAnnotation else { return false }
+        model.deleteWithUndo(note)
+        return true
     }
 
     @MainActor
@@ -173,7 +199,8 @@ final class PaneContainer: NSSplitViewController {
     func sync() {
         guard let workspace else { return }
         let readers = workspace.readers
-        while panes.count < readers.count {
+        let count = readers.count + (workspace.choosingSecondary ? 1 : 0)
+        while panes.count < count {
             let pane = Pane()
             let controller = NSViewController()
             controller.view = pane
@@ -183,9 +210,21 @@ final class PaneContainer: NSSplitViewController {
             addSplitViewItem(item)
             if panes.count == 2 { equalize() }
         }
-        while panes.count > readers.count, let last = splitViewItems.last {
+        while panes.count > count, let last = splitViewItems.last {
             panes.removeLast()
             removeSplitViewItem(last)
+        }
+        if workspace.choosingSecondary, let pane = panes.last {
+            let chooser = self.chooser ?? makeChooser(workspace)
+            self.chooser = chooser
+            if pane.content !== chooser { pane.content = chooser }
+            pane.showsHeader = true
+            pane.header.rootView = AnyView(PaneHeader(
+                title: "選擇要並排的檔案", isActive: false, isSecondary: true,
+                isLoading: workspace.loadingPane == true, onOpen: nil,
+                onClose: { [weak workspace] in workspace?.closeSplit() }))
+        } else {
+            chooser = nil  // made fresh next time, so its recent files are current
         }
         for (index, reader) in readers.enumerated() {
             let pane = panes[index]
@@ -205,6 +244,16 @@ final class PaneContainer: NSSplitViewController {
         }
     }
 
+    @MainActor
+    private func makeChooser(_ workspace: Workspace) -> NSView {
+        let open: (URL) -> Void = { [weak workspace] url in
+            Task { await workspace?.load(url, intoSecondary: true) }
+        }
+        let host = NSHostingView(rootView: PaneChooser(open: open))
+        host.sizingOptions = []
+        return host
+    }
+
     private func equalize() {
         DispatchQueue.main.async { [weak self] in
             guard let self, self.splitViewItems.count == 2 else { return }
@@ -219,11 +268,11 @@ private struct PaneHeader: View {
     let isActive: Bool
     let isSecondary: Bool
     let isLoading: Bool
-    let onOpen: () -> Void
+    let onOpen: (() -> Void)?
     let onClose: () -> Void
     private var prefs = ReadingPrefs()
 
-    init(title: String, isActive: Bool, isSecondary: Bool, isLoading: Bool, onOpen: @escaping () -> Void, onClose: @escaping () -> Void) {
+    init(title: String, isActive: Bool, isSecondary: Bool, isLoading: Bool, onOpen: (() -> Void)?, onClose: @escaping () -> Void) {
         self.title = title
         self.isActive = isActive
         self.isSecondary = isSecondary
@@ -245,9 +294,11 @@ private struct PaneHeader: View {
                 .truncationMode(.middle)
             Spacer(minLength: 4)
             if isLoading { ProgressView().controlSize(.mini) }
-            Button(action: onOpen) { Image(systemName: "folder") }
-                .buttonStyle(.borderless)
-                .help("在這一側開啟其他檔案")
+            if let onOpen {
+                Button(action: onOpen) { Image(systemName: "folder") }
+                    .buttonStyle(.borderless)
+                    .help("在這一側開啟其他檔案")
+            }
             if isSecondary {
                 Button(action: onClose) { Image(systemName: "xmark") }
                     .buttonStyle(.borderless)
@@ -263,5 +314,82 @@ private struct PaneHeader: View {
             Rectangle().fill(isActive ? palette.accent : palette.separator).frame(height: isActive ? 2 : 1)
         }
         .environment(\.colorScheme, palette.colorScheme)
+    }
+}
+
+/// The right pane right after splitting: pick a recent file or open one, like a new tab's welcome screen.
+private struct PaneChooser: View {
+    let open: (URL) -> Void
+    @State private var recent = RecentBooks.urls
+    private var prefs = ReadingPrefs()
+
+    init(open: @escaping (URL) -> Void) { self.open = open }
+
+    var body: some View {
+        let palette = ChromePalette(prefs.style)
+        VStack(spacing: 16) {
+            Image(systemName: "rectangle.split.2x1")
+                .font(.system(size: 36, weight: .light))
+                .foregroundStyle(palette.secondary)
+            Text("並排閱讀")
+                .font(.system(size: 18, weight: .semibold))
+                .foregroundStyle(palette.text)
+            Button("開啟 PDF 或 CHM 檔案…") {
+                if let url = RecentBooks.choose() { open(url) }
+            }
+            .controlSize(.large)
+
+            if !recent.isEmpty {
+                VStack(alignment: .leading, spacing: 2) {
+                    Text("最近閱讀")
+                        .font(.system(size: 12, weight: .semibold))
+                        .foregroundStyle(palette.secondary)
+                        .padding(.horizontal, 8)
+                        .padding(.bottom, 4)
+                    ForEach(recent, id: \.self) { url in
+                        RecentRow(url: url, palette: palette) { open(url) }
+                    }
+                }
+                .frame(maxWidth: 320)
+            }
+            Text("也可以把 .pdf 或 .chm 檔拖曳到這裡")
+                .font(.footnote)
+                .foregroundStyle(palette.secondary.opacity(0.8))
+        }
+        .padding(32)
+        .frame(maxWidth: .infinity, maxHeight: .infinity)
+        .background(palette.background)
+        .environment(\.colorScheme, palette.colorScheme)
+        .dropDestination(for: URL.self) { urls, _ in
+            guard let url = urls.first(where: OpenedDocument.isSupported) else { return false }
+            open(url)
+            return true
+        }
+    }
+}
+
+private struct RecentRow: View {
+    let url: URL
+    let palette: ChromePalette
+    let action: () -> Void
+    @State private var hovering = false
+
+    var body: some View {
+        Button(action: action) {
+            Label(url.deletingPathExtension().lastPathComponent,
+                  systemImage: url.pathExtension.lowercased() == "pdf" ? "doc.richtext" : "book")
+                .font(.system(size: 13))
+                .lineLimit(1)
+                .truncationMode(.middle)
+                .foregroundStyle(palette.text)
+                .frame(maxWidth: .infinity, alignment: .leading)
+                .padding(.horizontal, 8)
+                .padding(.vertical, 5)
+                .background(hovering ? palette.hover : .clear, in: RoundedRectangle(cornerRadius: 6))
+                .contentShape(Rectangle())
+        }
+        .buttonStyle(.plain)
+        .onHover { hovering = $0 }
+        .help(url.path)
     }
 }

@@ -117,7 +117,7 @@ struct NotesPanel<R: ReaderModel>: View {
             Text(wholeBook ? "這本書還沒有筆記" : "這一頁還沒有筆記")
                 .font(.system(size: 13, weight: .medium))
                 .foregroundStyle(palette.text)
-            Text("選取文字後按螢光筆（⌥⌘H）標記，\n或按便利貼（⌥⌘N）在頁面任一處加筆記。")
+            Text("選取文字後，從浮出的工具列螢光標記或加筆記；\n或按便利貼（⌥⌘N）在頁面任一處加筆記。")
                 .font(.caption)
                 .multilineTextAlignment(.center)
                 .lineSpacing(3)
@@ -202,12 +202,14 @@ private struct NoteCard<R: ReaderModel>: View {
         .contextMenu {
             Button("在另一側開啟") { reader.openBeside?(annotation.pagePath) }
             Button("在新分頁開啟") { reader.openInNewTab?(annotation.pagePath) }
-            Button("刪除", role: .destructive) { reader.delete(annotation) }
+            Button("刪除", role: .destructive) { reader.deleteWithUndo(annotation) }
         }
+        // Only a note just created gets the cursor; clicking an existing one keeps focus on the page, so ⌫ deletes it.
         .onChange(of: isSelected, initial: true) { _, selected in
-            if selected && annotation.note.isEmpty {
-                DispatchQueue.main.async { editorFocused = true }
-            }
+            guard selected, reader.noteToFocus == annotation.id else { return }
+            var reader = reader
+            reader.noteToFocus = nil
+            DispatchQueue.main.async { editorFocused = true }
         }
     }
 
@@ -249,11 +251,12 @@ private struct NoteCard<R: ReaderModel>: View {
                     .help(color.label)
                 }
                 Spacer()
-                Button { reader.delete(annotation) } label: {
+                Button { reader.deleteWithUndo(annotation) } label: {
                     Label("刪除", systemImage: "trash").font(.system(size: 12)).lineLimit(1).fixedSize()
                 }
                 .buttonStyle(.borderless)
                 .foregroundStyle(.red.opacity(0.85))
+                .help("刪除 (⌫)；可用 ⌘Z 復原")
                 Button("完成") {
                     withAnimation(.easeOut(duration: 0.18)) { reader.selectedAnnotation = nil }
                 }

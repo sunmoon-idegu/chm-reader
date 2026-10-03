@@ -46,6 +46,21 @@ final class Annotation {
 
     var isSticky: Bool { kind == "sticky" }
 
+    /// A detached copy with the same id, kept to restore the annotation after it's deleted.
+    func duplicate() -> Annotation {
+        let copy = Annotation(
+            bookKey: bookKey, bookTitle: bookTitle, pagePath: pagePath, pageTitle: pageTitle,
+            exact: exact, prefix: prefix, suffix: suffix, start: start, end: end, color: color)
+        copy.id = id
+        copy.note = note
+        copy.createdAt = createdAt
+        copy.updatedAt = updatedAt
+        copy.kind = kind
+        copy.x = x
+        copy.y = y
+        return copy
+    }
+
     var color: HighlightColor {
         get { HighlightColor(rawValue: colorName) ?? .yellow }
         set { colorName = newValue.rawValue }

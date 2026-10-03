@@ -69,9 +69,6 @@ struct ReaderCommands: Commands {
                 .keyboardShortcut("f")
         }
         CommandMenu("閱讀") {
-            Button("首頁") { reader?.goHome() }
-                .keyboardShortcut("h", modifiers: [.command, .shift])
-            Divider()
             Button(reader?.isReflowable == false ? "放大" : "放大字級") { workspace?.zoom(1) }
                 .keyboardShortcut("=")
             Button(reader?.isReflowable == false ? "縮小" : "縮小字級") { workspace?.zoom(-1) }

@@ -72,6 +72,8 @@ final class Workspace: ObservableObject {
     @Published private(set) var primary: AnyReader
     @Published private(set) var secondary: AnyReader?
     @Published private(set) var activeIsSecondary = false
+    /// Split, with the right pane still asking which file to open.
+    @Published private(set) var choosingSecondary = false
     @Published private(set) var loadingPane: Bool?
     @Published var error: String?
     /// Bumped by ⌘F; the window shows the sidebar.
@@ -87,7 +89,7 @@ final class Workspace: ObservableObject {
         self.primary = primary
     }
 
-    var isSplit: Bool { secondary != nil }
+    var isSplit: Bool { secondary != nil || choosingSecondary }
     var active: AnyReader { activeIsSecondary ? (secondary ?? primary) : primary }
     var model: any ReaderModel { active.model }
     var readers: [AnyReader] { [primary] + (secondary.map { [$0] } ?? []) }
@@ -104,7 +106,7 @@ final class Workspace: ObservableObject {
     }
 
     func activate(secondary: Bool) {
-        guard secondary != activeIsSecondary, !secondary || isSplit else { return }
+        guard secondary != activeIsSecondary, !secondary || self.secondary != nil else { return }
         activeIsSecondary = secondary
     }
 
@@ -119,17 +121,13 @@ final class Workspace: ObservableObject {
         searchRequest += 1
     }
 
-    /// Splits with the active book at its current page, or closes the split.
+    /// Splits, with the right pane asking which file to open (like a new tab), or closes the split.
     func toggleSplit() {
-        if isSplit {
-            closeSplit()
-        } else {
-            let model = self.model
-            Task { await load(model.bookURL, page: model.currentPage, intoSecondary: true) }
-        }
+        if isSplit { closeSplit() } else { choosingSecondary = true }
     }
 
     func closeSplit() {
+        choosingSecondary = false
         guard let secondary else { return }
         detach(secondary)
         self.secondary = nil
@@ -145,6 +143,7 @@ final class Workspace: ObservableObject {
             RecentBooks.add(url)
             if intoSecondary {
                 if let old = secondary { detach(old) }
+                choosingSecondary = false
                 secondary = reader
             } else {
                 detach(primary)

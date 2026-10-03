@@ -20,7 +20,7 @@ struct BookView: View {
     private var model: any ReaderModel { workspace.model }
     private var layoutRevision: String {
         let panes = workspace.readers.map { "\($0.id.hashValue)" }.joined(separator: ",")
-        return "\(panes)|\(workspace.activeIsSecondary)|\(String(describing: workspace.loadingPane))|\(model.bookTitle)"
+        return "\(panes)|\(workspace.choosingSecondary)|\(workspace.activeIsSecondary)|\(String(describing: workspace.loadingPane))|\(model.bookTitle)"
     }
 
     var body: some View {
@@ -68,28 +68,16 @@ struct BookView: View {
             }
     }
 
+    /// Left: contents. Right, in order: how the page looks (zoom, 版面), the layout (split), then the note tools
+    /// next to the notes panel they open. Highlighting lives in the bar that appears over selected text.
     @ToolbarContentBuilder
     private var toolbar: some ToolbarContent {
-        ToolbarItemGroup(placement: .navigation) {
+        ToolbarItem(placement: .navigation) {
             Button { showSidebar.toggle() } label: { Label("目錄", systemImage: "sidebar.left") }
                 .help(showSidebar ? "隱藏目錄 (⌃⌘S)" : "顯示目錄 (⌃⌘S)")
                 .keyboardShortcut("s", modifiers: [.command, .control])
-            Button { model.goHome() } label: { Label("首頁", systemImage: "house") }
-                .help("回到本書首頁")
         }
         ToolbarItemGroup(placement: .primaryAction) {
-            Button { model.highlightSelection() } label: {
-                Label("螢光標記", systemImage: "highlighter")
-            }
-            .disabled(!model.hasSelection)
-            .help(model.hasSelection ? "螢光標記選取的文字 (⌥⌘H)；點標記可寫筆記、改顏色" : "請先選取文字，再螢光標記")
-
-            Toggle(isOn: Binding(get: { model.isPlacingNote }, set: { on in var m = model; m.isPlacingNote = on })) {
-                Label("便利貼", systemImage: "note.text.badge.plus")
-            }
-            .toggleStyle(.button)
-            .help(model.isPlacingNote ? "點頁面任一處放上便利貼（Esc 取消）" : "便利貼：按下後點頁面任一處加上筆記 (⌥⌘N)")
-
             ControlGroup {
                 Button { workspace.zoom(-1) } label: {
                     Label(model.isReflowable ? "縮小字級" : "縮小", systemImage: model.isReflowable ? "textformat.size.smaller" : "minus.magnifyingglass")
@@ -111,6 +99,12 @@ struct BookView: View {
                 Label("分割畫面", systemImage: workspace.isSplit ? "rectangle" : "rectangle.split.2x1")
             }
             .help(workspace.isSplit ? "關閉分割畫面 (⌘\\)" : "分割畫面：並排閱讀 (⌘\\)")
+
+            Toggle(isOn: Binding(get: { model.isPlacingNote }, set: { on in var m = model; m.isPlacingNote = on })) {
+                Label("便利貼", systemImage: "note.text.badge.plus")
+            }
+            .toggleStyle(.button)
+            .help(model.isPlacingNote ? "點頁面任一處放上便利貼（Esc 取消）" : "便利貼：按下後點頁面任一處加上筆記 (⌥⌘N)")
 
             Button { var m = model; m.showNotePanel.toggle() } label: { Label("筆記", systemImage: "sidebar.right") }
                 .help(model.showNotePanel ? "隱藏筆記 (⌃⌘N)" : "顯示筆記 (⌃⌘N)")

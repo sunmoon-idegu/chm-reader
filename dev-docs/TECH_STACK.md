@@ -88,7 +88,9 @@ has to guess. Pages get `lang="zh-Hant"` so the system picks Traditional Chinese
 - Layout: outer `NSSplitViewController` (sidebar | pages | notes); the pages area is a nested
   `NSSplitViewController` with one or two panes. Sidebar and notes containers keep one hosted view per reader,
   so search text and scroll survive switching panes. A local mouse-down monitor makes the clicked pane active.
-- ⌘\ toggles the split (opening the active book at its current page); each pane's header can open another file;
+- ⌘\ toggles the split; the new right pane first shows a chooser (recent files, open, drop) like a new tab's
+  welcome screen. Each pane's header can open another file. Dividers keep a 1-pt line but a ~10-pt grab area
+  (`WideDividerSplitViewController` widens the effective rect);
   「在另一側開啟」 in the contents and notes context menus opens a page in the other pane.
 
 ### Tabs
@@ -97,7 +99,12 @@ has to guess. Pages get `lang="zh-Hant"` so the system picks Traditional Chinese
 - Window restoration is disabled, so launch always starts at the welcome screen.
 
 ### Highlights & notes
-- Select text → toolbar button, right-click menu, or ⌥⌘H to highlight (default yellow).
+- Select text → a floating `SelectionBar` (複製 / 螢光標記 / 加筆記) appears above it; also the right-click menu
+  or ⌥⌘H. CHM reports the selection rect from the page script on mouse-up (and on scroll); PDF on `mouseUp`
+  and clip-view bounds changes.
+- ⌫ deletes the selected note (via the pane container's key monitor, skipped while a text view has focus);
+  `deleteWithUndo` registers ⌘Z. Clicking elsewhere on the page deselects. Only newly created notes focus the editor.
+- CHM swipe back/forward gestures are off (sideways scrolling shouldn't turn pages); there is no 首頁 button.
 - Click a highlight to open it in the right-hand note panel: write the note (autosaves), change color, delete.
 
 ### Layout

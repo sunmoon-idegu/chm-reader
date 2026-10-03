@@ -12,13 +12,14 @@ protocol ReaderModel: ObservableObject {
     var bookURL: URL { get }
     var toc: [SitemapEntry] { get }
     var keywordIndex: [SitemapEntry] { get }
-    var homePage: String { get }
     var currentPage: String { get }
     var pageTitle: String { get }
     var hasSelection: Bool { get }
     /// Sticky-note tool: while on, the next click on the page places a note there.
     var isPlacingNote: Bool { get set }
     var selectedAnnotation: Annotation? { get set }
+    /// A note just created to be written: its card focuses the editor once, then clears this.
+    var noteToFocus: UUID? { get set }
     var showNotePanel: Bool { get set }
     var openInNewTab: ((String) -> Void)? { get set }
     /// Opens a page of this book in the other pane of the split view.
@@ -42,11 +43,30 @@ protocol ReaderModel: ObservableObject {
     func start(style: ReadingStyle)
     func apply(style: ReadingStyle)
     func open(_ page: String)
-    func goHome()
-    func highlightSelection()
+    /// Highlights the selected text; with `thenNote`, also opens its card to write a note.
+    func highlightSelection(thenNote: Bool)
+    func copySelection()
     func reveal(_ annotation: Annotation)
     func refreshMark(_ annotation: Annotation)
     func delete(_ annotation: Annotation)
+    /// Puts back a deleted annotation (undo).
+    func restore(_ annotation: Annotation)
+}
+
+extension ReaderModel {
+    func highlightSelection() { highlightSelection(thenNote: false) }
+
+    /// Deletes an annotation so Edit ▸ Undo (⌘Z) can bring it back.
+    func deleteWithUndo(_ annotation: Annotation) {
+        let copy = annotation.duplicate()
+        let undo = contentView.window?.undoManager
+        delete(annotation)
+        undo?.registerUndo(withTarget: self) { reader in
+            reader.restore(copy)
+            undo?.registerUndo(withTarget: reader) { $0.deleteWithUndo(copy) }
+        }
+        undo?.setActionName("刪除筆記")
+    }
 }
 
 extension ReaderController: ReaderModel {
@@ -55,7 +75,6 @@ extension ReaderController: ReaderModel {
     var bookURL: URL { book.url }
     var toc: [SitemapEntry] { book.toc }
     var keywordIndex: [SitemapEntry] { book.index }
-    var homePage: String { book.defaultTopic }
     var contentView: NSView { webView }
     var isReflowable: Bool { true }
 

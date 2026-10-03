@@ -229,11 +229,45 @@ enum ReaderScript {
         }
         const m = e.target && e.target.closest && e.target.closest('mark.' + HL + ', .' + STICKY);
         const sel = window.getSelection();
-        if (m && (!sel || sel.isCollapsed)) {
-          e.preventDefault();
-          e.stopPropagation();
-          post({ type: 'highlightClicked', id: m.dataset.id });
+        if (!sel || sel.isCollapsed) {
+          if (m) {
+            e.preventDefault();
+            e.stopPropagation();
+            post({ type: 'highlightClicked', id: m.dataset.id });
+          } else {
+            post({ type: 'pageClicked' });
+          }
         }
+      }, true);
+
+      // The selection's bounds in the top window, for the floating action bar.
+      function selectionRect() {
+        const sel = window.getSelection();
+        if (!sel || sel.isCollapsed || sel.rangeCount === 0 || !sel.toString().trim()) return null;
+        const r = sel.getRangeAt(0).getBoundingClientRect();
+        return { x: r.left, y: r.top, w: r.width, h: r.height };
+      }
+
+      let barShown = false;
+      const isTop = window === window.top;
+      document.addEventListener('mouseup', () => {
+        if (!isTop || placing) return;
+        setTimeout(() => {
+          const rect = selectionRect();
+          barShown = !!rect;
+          if (rect) post({ type: 'selectionEnded', rect });
+        }, 0);
+      }, true);
+
+      let scrollQueued = false;
+      window.addEventListener('scroll', () => {
+        if (!barShown || scrollQueued) return;
+        scrollQueued = true;
+        requestAnimationFrame(() => {
+          scrollQueued = false;
+          const rect = selectionRect();
+          if (rect) post({ type: 'selectionMoved', rect });
+        });
       }, true);
 
       document.addEventListener('keydown', (e) => {
@@ -244,6 +278,7 @@ enum ReaderScript {
       document.addEventListener('selectionchange', () => {
         const sel = window.getSelection();
         const has = !!sel && !sel.isCollapsed && sel.toString().trim().length > 0;
+        if (!has) barShown = false;
         if (has !== hadSelection) { hadSelection = has; post({ type: 'selection', has }); }
       });
 
