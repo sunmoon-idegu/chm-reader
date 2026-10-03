@@ -117,7 +117,7 @@ struct NotesPanel<R: ReaderModel>: View {
             Text(wholeBook ? "這本書還沒有筆記" : "這一頁還沒有筆記")
                 .font(.system(size: 13, weight: .medium))
                 .foregroundStyle(palette.text)
-            Text("選取文字後按螢光筆（⌥⌘H），\n再點螢光文字就能寫筆記。")
+            Text("選取文字後按螢光筆（⌥⌘H）標記，\n或按便利貼（⌥⌘N）在頁面任一處加筆記。")
                 .font(.caption)
                 .multilineTextAlignment(.center)
                 .lineSpacing(3)
@@ -157,12 +157,18 @@ private struct NoteCard<R: ReaderModel>: View {
                 .frame(width: 3)
 
             VStack(alignment: .leading, spacing: 8) {
-                Text(annotation.exact)
-                    .font(.system(size: 13))
-                    .lineSpacing(4)
-                    .foregroundStyle(isSelected ? palette.text : palette.secondary)
-                    .lineLimit(isSelected ? 10 : 3)
-                    .frame(maxWidth: .infinity, alignment: .leading)
+                if annotation.isSticky {
+                    Label("便利貼", systemImage: "note.text")
+                        .font(.system(size: 12, weight: .medium))
+                        .foregroundStyle(palette.secondary)
+                } else {
+                    Text(annotation.exact)
+                        .font(.system(size: 13))
+                        .lineSpacing(4)
+                        .foregroundStyle(isSelected ? palette.text : palette.secondary)
+                        .lineLimit(isSelected ? 10 : 3)
+                        .frame(maxWidth: .infinity, alignment: .leading)
+                }
 
                 if isSelected {
                     editor
@@ -244,7 +250,7 @@ private struct NoteCard<R: ReaderModel>: View {
                 }
                 Spacer()
                 Button { reader.delete(annotation) } label: {
-                    Label("刪除", systemImage: "trash").font(.system(size: 12))
+                    Label("刪除", systemImage: "trash").font(.system(size: 12)).lineLimit(1).fixedSize()
                 }
                 .buttonStyle(.borderless)
                 .foregroundStyle(.red.opacity(0.85))

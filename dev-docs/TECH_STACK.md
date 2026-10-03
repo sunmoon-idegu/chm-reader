@@ -65,6 +65,14 @@ has to guess. Pages get `lang="zh-Hant"` so the system picks Traditional Chinese
 - Fixed layout: font-size controls become zoom; the typography panel shows only background themes.
 - Not yet: password-protected PDFs, highlights spanning pages (only the first page's part is kept).
 
+### Sticky notes
+- `Annotation.kind == "sticky"` (new SwiftData fields `kind`, `x`, `y` with defaults, so old stores migrate).
+- Toolbar toggle / ⌥⌘N turns on placement; the next click places the note and opens its card. Esc cancels.
+- CHM: the page script reads the click's caret offset (`caretRangeFromPoint`) and anchors the note there with
+  prefix/suffix context; it renders as an inline icon, so it follows text reflow.
+- PDF: a transparent `NotePlacementOverlay` over the `PDFView` catches the click (crosshair cursor); the note is a
+  PDFKit `.text` annotation at that point in page coordinates, drawn in memory only.
+
 ### Full-text search (feat/search)
 - `CHMKit.FullTextIndex`: in-memory index of every page's visible text, built once per book in the background
   (瑜伽師地論: 529 pages, 7.3 M characters, ~1.8 s), then case/width/diacritic-insensitive substring search (~0.2 s).

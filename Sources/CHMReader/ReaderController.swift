@@ -89,6 +89,13 @@ final class ReaderController: NSObject, ObservableObject, WKNavigationDelegate, 
     var openInNewTab: ((String) -> Void)?
     var openBeside: ((String) -> Void)?
     @Published var searchRequest = 0
+    @Published var isPlacingNote = false {
+        didSet {
+            guard isPlacingNote != oldValue else { return }
+            let on = isPlacingNote
+            Task { _ = await js("chmReader.setPlacing(on)", ["on": on]) }
+        }
+    }
     private var searchIndex: Task<FullTextIndex, Never>?
     private var pendingFind: (query: String, occurrence: Int)?
     private var style: ReadingStyle?
@@ -177,6 +184,7 @@ final class ReaderController: NSObject, ObservableObject, WKNavigationDelegate, 
 
     func webView(_ webView: WKWebView, didCommit navigation: WKNavigation!) {
         hasSelection = false
+        isPlacingNote = false
         syncState()
     }
 
@@ -298,6 +306,19 @@ final class ReaderController: NSObject, ObservableObject, WKNavigationDelegate, 
         }
     }
 
+    private func placeSticky(at offset: Int, prefix: String, suffix: String) {
+        isPlacingNote = false
+        let note = Annotation(
+            bookKey: book.key, bookTitle: book.title, pagePath: currentPage, pageTitle: pageTitle,
+            exact: "", prefix: prefix, suffix: suffix, start: offset, end: offset, color: .yellow)
+        note.kind = "sticky"
+        modelContext.insert(note)
+        try? modelContext.save()
+        Task { _ = await js("chmReader.apply(a)", ["a": note.jsPayload]) }
+        selectedAnnotation = note
+        showNotePanel = true
+    }
+
     func refreshMark(_ annotation: Annotation) {
         annotation.updatedAt = .now
         try? modelContext.save()
@@ -342,9 +363,19 @@ final class ReaderController: NSObject, ObservableObject, WKNavigationDelegate, 
 
     func userContentController(_ c: WKUserContentController, didReceive message: WKScriptMessage) {
         guard let body = message.body as? [String: Any] else { return }
-        if body["type"] as? String == "selection" {
+        switch body["type"] as? String {
+        case "selection":
             hasSelection = (body["has"] as? NSNumber)?.boolValue ?? false
             return
+        case "placingCancelled":
+            isPlacingNote = false
+            return
+        case "placeSticky":
+            placeSticky(at: (body["start"] as? NSNumber)?.intValue ?? 0,
+                        prefix: body["prefix"] as? String ?? "", suffix: body["suffix"] as? String ?? "")
+            return
+        default:
+            break
         }
         guard body["type"] as? String == "highlightClicked",
               let idString = body["id"] as? String, let id = UUID(uuidString: idString) else { return }

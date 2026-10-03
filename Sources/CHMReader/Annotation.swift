@@ -18,6 +18,11 @@ final class Annotation {
     var note: String
     var createdAt: Date
     var updatedAt: Date
+    /// "highlight" (anchored to selected text) or "sticky" (a note placed at a spot). Defaults keep old stores migrating.
+    var kind: String = "highlight"
+    /// Sticky notes on PDF pages: position in page coordinates.
+    var x: Double = 0
+    var y: Double = 0
 
     init(
         bookKey: String, bookTitle: String, pagePath: String, pageTitle: String,
@@ -39,6 +44,8 @@ final class Annotation {
         updatedAt = .now
     }
 
+    var isSticky: Bool { kind == "sticky" }
+
     var color: HighlightColor {
         get { HighlightColor(rawValue: colorName) ?? .yellow }
         set { colorName = newValue.rawValue }
@@ -47,7 +54,7 @@ final class Annotation {
     /// Payload consumed by `chmReader.apply` in the page script.
     var jsPayload: [String: Any] {
         [
-            "id": id.uuidString, "color": colorName, "note": !note.isEmpty,
+            "id": id.uuidString, "color": colorName, "note": !note.isEmpty, "kind": kind,
             "exact": exact, "prefix": prefix, "suffix": suffix, "start": start, "end": end,
         ]
     }
@@ -75,7 +82,11 @@ enum NotesExporter {
                 out += "## \(a.pageTitle.isEmpty ? a.pagePath : a.pageTitle)\n\n"
                 lastPage = a.pagePath
             }
-            out += a.exact.split(separator: "\n").map { "> \($0)" }.joined(separator: "\n") + "\n\n"
+            if a.isSticky {
+                out += "📝 便利貼\n\n"
+            } else {
+                out += a.exact.split(separator: "\n").map { "> \($0)" }.joined(separator: "\n") + "\n\n"
+            }
             if !a.note.isEmpty { out += a.note + "\n\n" }
         }
         return out

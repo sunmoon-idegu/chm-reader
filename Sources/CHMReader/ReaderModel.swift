@@ -16,6 +16,8 @@ protocol ReaderModel: ObservableObject {
     var currentPage: String { get }
     var pageTitle: String { get }
     var hasSelection: Bool { get }
+    /// Sticky-note tool: while on, the next click on the page places a note there.
+    var isPlacingNote: Bool { get set }
     var selectedAnnotation: Annotation? { get set }
     var showNotePanel: Bool { get set }
     var openInNewTab: ((String) -> Void)? { get set }

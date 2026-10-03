@@ -10,6 +10,7 @@ enum ReaderScript {
     (() => {
       if (window.chmReader) return;
       const HL = 'chmr-hl';
+      const STICKY = 'chmr-sticky';
       const CONTEXT = 32;
       let styleText = '';
 
@@ -154,7 +155,8 @@ enum ReaderScript {
       }
 
       function marks(id) {
-        return document.querySelectorAll('mark.' + HL + '[data-id="' + CSS.escape(id) + '"]');
+        const key = '[data-id="' + CSS.escape(id) + '"]';
+        return document.querySelectorAll('mark.' + HL + key + ', .' + STICKY + key);
       }
 
       function remove(id) {
@@ -166,8 +168,40 @@ enum ReaderScript {
         });
       }
 
+      /// Where a sticky note sits: its stored offset if the surrounding text still matches, else where its
+      /// context reappears, else the old offset clamped to the page.
+      function locatePoint(a, idx) {
+        const t = idx.text;
+        if (t.slice(Math.max(0, a.start - a.prefix.length), a.start) === a.prefix
+            && t.slice(a.start, a.start + a.suffix.length) === a.suffix) return a.start;
+        const both = t.indexOf(a.prefix + a.suffix);
+        if (a.prefix + a.suffix && both >= 0) return both + a.prefix.length;
+        return Math.min(a.start, t.length);
+      }
+
+      function applySticky(a) {
+        const idx = buildIndex();
+        const pos = locatePoint(a, idx);
+        const icon = document.createElement('span');
+        icon.className = STICKY;
+        icon.dataset.id = a.id;
+        icon.dataset.color = a.color;
+        icon.dataset.note = a.note ? '1' : '0';
+        icon.title = '便利貼';
+        for (const { node, start } of idx.nodes) {
+          const end = start + node.nodeValue.length;
+          if (pos < start || pos > end) continue;
+          const after = pos - start < node.nodeValue.length ? node.splitText(pos - start) : node.nextSibling;
+          node.parentNode.insertBefore(icon, after);
+          return true;
+        }
+        document.body.appendChild(icon);
+        return true;
+      }
+
       function apply(a) {
         remove(a.id);
+        if (a.kind === 'sticky') return applySticky(a);
         const idx = buildIndex();
         const r = locate(a, idx);
         if (!r) return false;
@@ -175,14 +209,35 @@ enum ReaderScript {
         return true;
       }
 
+      let placing = false;
+      function setPlacing(on) {
+        placing = on;
+        document.documentElement.classList.toggle('chmr-placing', on);
+      }
+
       document.addEventListener('click', (e) => {
-        const m = e.target && e.target.closest && e.target.closest('mark.' + HL);
+        if (placing) {
+          e.preventDefault();
+          e.stopPropagation();
+          const caret = document.caretRangeFromPoint(e.clientX, e.clientY);
+          const idx = buildIndex();
+          const at = caret ? offsetOf(idx, caret.startContainer, caret.startOffset) : 0;
+          setPlacing(false);
+          post({ type: 'placeSticky', start: at,
+                 prefix: idx.text.slice(Math.max(0, at - CONTEXT), at), suffix: idx.text.slice(at, at + CONTEXT) });
+          return;
+        }
+        const m = e.target && e.target.closest && e.target.closest('mark.' + HL + ', .' + STICKY);
         const sel = window.getSelection();
         if (m && (!sel || sel.isCollapsed)) {
           e.preventDefault();
           e.stopPropagation();
           post({ type: 'highlightClicked', id: m.dataset.id });
         }
+      }, true);
+
+      document.addEventListener('keydown', (e) => {
+        if (placing && e.key === 'Escape') { setPlacing(false); post({ type: 'placingCancelled' }); }
       }, true);
 
       let hadSelection = false;
@@ -215,6 +270,7 @@ enum ReaderScript {
           return true;
         },
         clearSelection() { const s = window.getSelection(); if (s) s.removeAllRanges(); },
+        setPlacing,
         find
       };
     })();

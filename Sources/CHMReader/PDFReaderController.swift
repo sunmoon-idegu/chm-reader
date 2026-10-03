@@ -38,6 +38,23 @@ final class ReaderPDFView: PDFView {
     }
 }
 
+/// Covers the PDF view while the sticky-note tool is on: crosshair cursor, the next click places a note, Esc cancels.
+final class NotePlacementOverlay: NSView {
+    weak var reader: PDFReaderController?
+
+    override var acceptsFirstResponder: Bool { true }
+    override func resetCursorRects() { addCursorRect(bounds, cursor: .crosshair) }
+
+    override func mouseDown(with event: NSEvent) {
+        guard let reader, let pdfView = superview else { return }
+        reader.placeSticky(at: pdfView.convert(event.locationInWindow, from: nil))
+    }
+
+    override func keyDown(with event: NSEvent) {
+        if event.keyCode == 53 { reader?.isPlacingNote = false } else { super.keyDown(with: event) }
+    }
+}
+
 /// Fixed-layout reader for PDF. Page identifiers are `/page/<1-based index>`, optionally `#<y>` for a
 /// position on the page. Highlights are drawn as in-memory PDFKit annotations; the file is never modified.
 @MainActor
@@ -62,6 +79,22 @@ final class PDFReaderController: NSObject, ObservableObject, ReaderModel {
     var openInNewTab: ((String) -> Void)?
     var openBeside: ((String) -> Void)?
     @Published var searchRequest = 0
+    @Published var isPlacingNote = false {
+        didSet {
+            guard isPlacingNote != oldValue else { return }
+            if isPlacingNote {
+                placementOverlay.reader = self
+                placementOverlay.frame = pdfView.bounds
+                placementOverlay.autoresizingMask = [.width, .height]
+                pdfView.addSubview(placementOverlay)
+                pdfView.window?.makeFirstResponder(placementOverlay)
+                pdfView.window?.invalidateCursorRects(for: placementOverlay)
+            } else {
+                placementOverlay.removeFromSuperview()
+            }
+        }
+    }
+    private let placementOverlay = NotePlacementOverlay()
     private var searchIndex: Task<FullTextIndex, Never>?
 
     private let initialPage: String
@@ -146,6 +179,27 @@ final class PDFReaderController: NSObject, ObservableObject, ReaderModel {
     }
 
     func goHome() { open(homePage) }
+
+    /// Places a sticky note at a point in PDF-view coordinates.
+    func placeSticky(at point: NSPoint) {
+        isPlacingNote = false
+        guard let page = pdfView.page(for: point, nearest: true) else { return }
+        let p = pdfView.convert(point, to: page)
+        let index = document.index(for: page)
+        let charIndex = max(page.characterIndex(at: p), 0)
+        let note = Annotation(
+            bookKey: bookKey, bookTitle: bookTitle, pagePath: "/page/\(index + 1)",
+            pageTitle: title(forPageIndex: index), exact: "", prefix: "", suffix: "",
+            start: charIndex, end: charIndex, color: .yellow)
+        note.kind = "sticky"
+        note.x = Double(p.x)
+        note.y = Double(p.y)
+        modelContext.insert(note)
+        try? modelContext.save()
+        draw(note)
+        selectedAnnotation = note
+        showNotePanel = true
+    }
 
     @objc private func pageChanged() {
         guard let page = pdfView.currentPage else { return }
@@ -237,6 +291,11 @@ final class PDFReaderController: NSObject, ObservableObject, ReaderModel {
     }
 
     func reveal(_ annotation: Annotation) {
+        if annotation.isSticky {
+            guard let index = Self.pageIndex(of: annotation.pagePath), let page = document.page(at: index) else { return }
+            pdfView.go(to: PDFDestination(page: page, at: NSPoint(x: annotation.x, y: annotation.y + 80)))
+            return
+        }
         guard let selection = locate(annotation) else {
             open(annotation.pagePath)
             return
@@ -276,6 +335,20 @@ final class PDFReaderController: NSObject, ObservableObject, ReaderModel {
 
     private func draw(_ annotation: Annotation) {
         erase(annotation)
+        if annotation.isSticky {
+            guard let index = Self.pageIndex(of: annotation.pagePath), let page = document.page(at: index) else { return }
+            let size: CGFloat = 22
+            let mark = PDFAnnotation(
+                bounds: NSRect(x: annotation.x - 4, y: annotation.y - size + 4, width: size, height: size),
+                forType: .text, withProperties: nil)
+            mark.iconType = .note
+            mark.color = NSColor(annotation.color.color)
+            mark.userName = Self.markPrefix + annotation.id.uuidString
+            mark.contents = annotation.note
+            page.addAnnotation(mark)
+            pdfView.annotationsChanged(on: page)
+            return
+        }
         guard let selection = locate(annotation), let page = selection.pages.first else { return }
         let color = NSColor(annotation.color.color).withAlphaComponent(0.45)
         for line in selection.selectionsByLine() {

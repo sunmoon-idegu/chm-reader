@@ -23,6 +23,7 @@
 
 - **正確顯示繁體中文**：依書中語系自動辨識 Big5 / CP950、HKSCS、GB18030 等舊編碼，不再出現亂碼。
 - **目錄側邊欄**：依章節瀏覽，自動標示目前位置；沒有目錄檔的書會依頁面標題自動整理。
+- **便利貼**：按工具列的便利貼（⌥⌘N），再點頁面任一處，就能在那裡貼上筆記。
 - **全文搜尋**：⌘F 搜尋整本書的內文，結果依頁面列出並標示上下文，點一下就跳到該處。
 - **螢光標記與筆記**：選字按 ⌥⌘H 標記，點螢光文字即可在右側筆記欄寫筆記，自動儲存；可看本頁或全書筆記，並匯出 Markdown。
 - **舒適排版**：蘋方、宋體、楷體；字級（⌘= / ⌘-）、行高、段距、版面寬度；白、米黃、護眼綠、夜間或自訂背景。
@@ -34,6 +35,7 @@
 
 - Reads legacy Chinese CHMs correctly: Big5/CP950, HKSCS and GB18030 are detected from the book's language ID and page charset.
 - Table-of-contents sidebar; books without a `.hhc` get a TOC built from their internal topic tables.
+- Sticky notes (⌥⌘N): click the tool, then anywhere on the page.
 - Full-text search (⌘F) across the whole book, with snippets; click a result to jump to the match.
 - Highlights (⌥⌘H) with a notes panel: per-page or whole-book view, autosave, Markdown export.
 - Typography controls: font, size, line height, paragraph spacing, page width, and themes including night mode.

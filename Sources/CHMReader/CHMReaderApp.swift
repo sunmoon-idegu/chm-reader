@@ -85,6 +85,8 @@ struct ReaderCommands: Commands {
             Button("螢光標記") { reader?.highlightSelection() }
                 .keyboardShortcut("h", modifiers: [.command, .option])
                 .disabled(focusedReaderHasNoSelection)
+            Button("便利貼") { if var model = reader { model.isPlacingNote.toggle() } }
+                .keyboardShortcut("n", modifiers: [.command, .option])
         }
     }
 }

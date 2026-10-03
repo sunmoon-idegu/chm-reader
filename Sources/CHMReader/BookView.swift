@@ -84,6 +84,12 @@ struct BookView: View {
             .disabled(!model.hasSelection)
             .help(model.hasSelection ? "螢光標記選取的文字 (⌥⌘H)；點標記可寫筆記、改顏色" : "請先選取文字，再螢光標記")
 
+            Toggle(isOn: Binding(get: { model.isPlacingNote }, set: { on in var m = model; m.isPlacingNote = on })) {
+                Label("便利貼", systemImage: "note.text.badge.plus")
+            }
+            .toggleStyle(.button)
+            .help(model.isPlacingNote ? "點頁面任一處放上便利貼（Esc 取消）" : "便利貼：按下後點頁面任一處加上筆記 (⌥⌘N)")
+
             ControlGroup {
                 Button { workspace.zoom(-1) } label: {
                     Label(model.isReflowable ? "縮小字級" : "縮小", systemImage: model.isReflowable ? "textformat.size.smaller" : "minus.magnifyingglass")
