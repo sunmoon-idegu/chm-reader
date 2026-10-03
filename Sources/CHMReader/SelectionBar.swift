@@ -38,51 +38,71 @@ final class SelectionBar {
     }
 }
 
+/// A solid bar in the reading theme's text color with the page color as its text (dark brown on 米黃,
+/// light on 夜間), so it stands out on any page.
 struct SelectionActions: View {
     let copy: () -> Void
     let highlight: () -> Void
     let note: () -> Void
+    private var prefs = ReadingPrefs()
+
+    init(copy: @escaping () -> Void, highlight: @escaping () -> Void, note: @escaping () -> Void) {
+        self.copy = copy
+        self.highlight = highlight
+        self.note = note
+    }
 
     var body: some View {
+        let colors = prefs.style.colors
+        let barIsDark = !prefs.style.isDark
+        let fill = Color(nsColor: NSColor(hex: colors.foreground) ?? .black)
+        let ink = Color(nsColor: NSColor(hex: colors.background) ?? .white)
+        let marker = barIsDark ? HighlightColor.yellow.color : Color(red: 0.85, green: 0.55, blue: 0)
         HStack(spacing: 2) {
-            item("複製", "doc.on.doc", copy)
-            divider
-            item("螢光標記", "highlighter", highlight)
-            divider
-            item("加筆記", "square.and.pencil", note)
+            item("複製", "doc.on.doc", ink, ink, copy)
+            divider(ink)
+            item("螢光標記", "highlighter", marker, ink, highlight)
+            divider(ink)
+            item("加筆記", "square.and.pencil", ink, ink, note)
         }
-        .padding(4)
-        .background(.regularMaterial, in: RoundedRectangle(cornerRadius: 9))
-        .overlay(RoundedRectangle(cornerRadius: 9).stroke(.black.opacity(0.12), lineWidth: 0.5))
-        .shadow(color: .black.opacity(0.18), radius: 6, y: 2)
-        .padding(8)
+        .padding(5)
+        .background(fill, in: RoundedRectangle(cornerRadius: 11))
+        .shadow(color: .black.opacity(0.3), radius: 10, y: 4)
+        .padding(10)
         .fixedSize()
     }
 
-    private var divider: some View {
-        Rectangle().fill(.primary.opacity(0.12)).frame(width: 1, height: 16)
+    private func divider(_ ink: Color) -> some View {
+        Rectangle().fill(ink.opacity(0.25)).frame(width: 1, height: 18)
     }
 
-    private func item(_ title: String, _ symbol: String, _ action: @escaping () -> Void) -> some View {
+    private func item(_ title: String, _ symbol: String, _ iconColor: Color, _ ink: Color, _ action: @escaping () -> Void) -> some View {
         Button(action: action) {
-            Label(title, systemImage: symbol)
-                .font(.system(size: 12, weight: .medium))
-                .padding(.horizontal, 8)
-                .padding(.vertical, 5)
-                .contentShape(Rectangle())
+            HStack(spacing: 6) {
+                Image(systemName: symbol)
+                    .font(.system(size: 14, weight: .semibold))
+                    .foregroundStyle(iconColor)
+                Text(title)
+                    .font(.system(size: 14, weight: .semibold))
+                    .foregroundStyle(ink)
+            }
+            .padding(.horizontal, 12)
+            .padding(.vertical, 8)
+            .contentShape(Rectangle())
         }
-        .buttonStyle(SelectionButtonStyle())
+        .buttonStyle(SelectionButtonStyle(ink: ink))
     }
 }
 
 private struct SelectionButtonStyle: ButtonStyle {
+    let ink: Color
     @State private var hovering = false
 
     func makeBody(configuration: Configuration) -> some View {
         configuration.label
             .background(
-                RoundedRectangle(cornerRadius: 6)
-                    .fill(.primary.opacity(configuration.isPressed ? 0.16 : hovering ? 0.08 : 0)))
+                RoundedRectangle(cornerRadius: 7)
+                    .fill(ink.opacity(configuration.isPressed ? 0.28 : hovering ? 0.16 : 0)))
             .onHover { hovering = $0 }
     }
 }

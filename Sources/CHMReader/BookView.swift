@@ -68,8 +68,8 @@ struct BookView: View {
             }
     }
 
-    /// Left: contents. Right, in order: how the page looks (zoom, 版面), the layout (split), then the note tools
-    /// next to the notes panel they open. Highlighting lives in the bar that appears over selected text.
+    /// Left: contents. Right, in three groups: how the page looks (zoom, 版面) · the sticky-note tool ·
+    /// the panes (split, notes). Highlighting lives in the bar that appears over selected text.
     @ToolbarContentBuilder
     private var toolbar: some ToolbarContent {
         ToolbarItem(placement: .navigation) {
@@ -78,37 +78,45 @@ struct BookView: View {
                 .keyboardShortcut("s", modifiers: [.command, .control])
         }
         ToolbarItemGroup(placement: .primaryAction) {
-            ControlGroup {
-                Button { workspace.zoom(-1) } label: {
-                    Label(model.isReflowable ? "縮小字級" : "縮小", systemImage: model.isReflowable ? "textformat.size.smaller" : "minus.magnifyingglass")
-                }
-                .help(model.isReflowable ? "縮小字級 (⌘-)" : "縮小 (⌘-)")
-                Button { workspace.zoom(1) } label: {
-                    Label(model.isReflowable ? "放大字級" : "放大", systemImage: model.isReflowable ? "textformat.size.larger" : "plus.magnifyingglass")
-                }
-                .help(model.isReflowable ? "放大字級 (⌘=)" : "放大 (⌘=)")
+            Button { workspace.zoom(-1) } label: {
+                Label(model.isReflowable ? "縮小字級" : "縮小", systemImage: model.isReflowable ? "textformat.size.smaller" : "minus.magnifyingglass")
             }
-
+            .help(model.isReflowable ? "縮小字級 (⌘-)" : "縮小 (⌘-)")
+            Button { workspace.zoom(1) } label: {
+                Label(model.isReflowable ? "放大字級" : "放大", systemImage: model.isReflowable ? "textformat.size.larger" : "plus.magnifyingglass")
+            }
+            .help(model.isReflowable ? "放大字級 (⌘=)" : "放大 (⌘=)")
             Button { showTypography.toggle() } label: { Label("版面", systemImage: "slider.horizontal.3") }
                 .help(model.isReflowable ? "字型、字級、行距、背景" : "背景")
                 .popover(isPresented: $showTypography, arrowEdge: .bottom) {
                     TypographyPanel(themeOnly: !model.isReflowable).frame(width: 380).padding(20)
                 }
-
-            Button { workspace.toggleSplit() } label: {
-                Label("分割畫面", systemImage: workspace.isSplit ? "rectangle" : "rectangle.split.2x1")
-            }
-            .help(workspace.isSplit ? "關閉分割畫面 (⌘\\)" : "分割畫面：並排閱讀 (⌘\\)")
-
+        }
+        groupGap
+        ToolbarItem(placement: .primaryAction) {
             Toggle(isOn: Binding(get: { model.isPlacingNote }, set: { on in var m = model; m.isPlacingNote = on })) {
                 Label("便利貼", systemImage: "note.text.badge.plus")
             }
             .toggleStyle(.button)
             .help(model.isPlacingNote ? "點頁面任一處放上便利貼（Esc 取消）" : "便利貼：按下後點頁面任一處加上筆記 (⌥⌘N)")
-
+        }
+        groupGap
+        ToolbarItemGroup(placement: .primaryAction) {
+            Button { workspace.toggleSplit() } label: {
+                Label("分割畫面", systemImage: workspace.isSplit ? "rectangle" : "rectangle.split.2x1")
+            }
+            .help(workspace.isSplit ? "關閉分割畫面 (⌘\\)" : "分割畫面：並排閱讀 (⌘\\)")
             Button { var m = model; m.showNotePanel.toggle() } label: { Label("筆記", systemImage: "sidebar.right") }
                 .help(model.showNotePanel ? "隱藏筆記 (⌃⌘N)" : "顯示筆記 (⌃⌘N)")
                 .keyboardShortcut("n", modifiers: [.command, .control])
+        }
+    }
+
+    /// Separates toolbar groups (each group gets its own capsule on macOS 26).
+    @ToolbarContentBuilder
+    private var groupGap: some ToolbarContent {
+        if #available(macOS 26, *) {
+            ToolbarSpacer(.fixed, placement: .primaryAction)
         }
     }
 }

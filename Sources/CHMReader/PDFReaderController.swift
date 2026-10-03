@@ -45,12 +45,12 @@ final class ReaderPDFView: PDFView {
     }
 }
 
-/// Covers the PDF view while the sticky-note tool is on: crosshair cursor, the next click places a note, Esc cancels.
+/// Covers the PDF view while the sticky-note tool is on: sticky-note cursor, the next click places a note, Esc cancels.
 final class NotePlacementOverlay: NSView {
     weak var reader: PDFReaderController?
 
     override var acceptsFirstResponder: Bool { true }
-    override func resetCursorRects() { addCursorRect(bounds, cursor: .crosshair) }
+    override func resetCursorRects() { addCursorRect(bounds, cursor: StickyArt.cursor) }
 
     override func mouseDown(with event: NSEvent) {
         guard let reader, let pdfView = superview else { return }
@@ -390,10 +390,10 @@ final class PDFReaderController: NSObject, ObservableObject, ReaderModel {
         if annotation.isSticky {
             guard let index = Self.pageIndex(of: annotation.pagePath), let page = document.page(at: index) else { return }
             let size: CGFloat = 22
-            let mark = PDFAnnotation(
-                bounds: NSRect(x: annotation.x - 4, y: annotation.y - size + 4, width: size, height: size),
+            // Top-left corner at the clicked point, where the cursor's hot spot was.
+            let mark = StickyNoteAnnotation(
+                bounds: NSRect(x: annotation.x - 2, y: annotation.y - size + 2, width: size, height: size),
                 forType: .text, withProperties: nil)
-            mark.iconType = .note
             mark.color = NSColor(annotation.color.color)
             mark.userName = Self.markPrefix + annotation.id.uuidString
             mark.contents = annotation.note

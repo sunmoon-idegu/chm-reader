@@ -104,6 +104,8 @@ has to guess. Pages get `lang="zh-Hant"` so the system picks Traditional Chinese
   and clip-view bounds changes.
 - ⌫ deletes the selected note (via the pane container's key monitor, skipped while a text view has focus);
   `deleteWithUndo` registers ⌘Z. Clicking elsewhere on the page deselects. Only newly created notes focus the editor.
+- Sticky notes share one look (`StickyArt`: colored square, four lines): PDF draws it via `StickyNoteAnnotation`,
+  CHM matches it in CSS, and the placing cursor is the same note (hot spot = its top-left corner).
 - CHM swipe back/forward gestures are off (sideways scrolling shouldn't turn pages); there is no 首頁 button.
 - Click a highlight to open it in the right-hand note panel: write the note (autosaves), change color, delete.
 

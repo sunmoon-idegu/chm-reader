@@ -124,15 +124,18 @@ struct ReadingStyle: Equatable {
             mark.chmr-hl[data-color="pink"] { background: rgba(255, 45, 85, \(isDark ? 0.4 : 0.28)) !important; }
             mark.chmr-hl[data-note="1"] { text-decoration: underline dotted 2px; text-underline-offset: 0.25em; }
             mark.chmr-hl.chmr-flash, .chmr-sticky.chmr-flash { outline: 2px solid \(link); }
-            .chmr-sticky { display: inline-block; position: relative; width: 1.05em; height: 1.05em; margin: 0 0.15em;
-              vertical-align: -0.12em; border-radius: 0.18em; cursor: pointer; text-indent: 0;
-              background: rgba(255, 204, 0, 0.95) !important; box-shadow: 0 1px 2px rgba(0, 0, 0, 0.3); }
-            .chmr-sticky::after { content: ""; position: absolute; left: 22%; right: 22%; top: 32%; height: 34%;
-              border-top: 0.09em solid rgba(0, 0, 0, 0.45); border-bottom: 0.09em solid rgba(0, 0, 0, 0.45); }
-            .chmr-sticky[data-color="green"] { background: rgba(52, 199, 89, 0.95) !important; }
-            .chmr-sticky[data-color="blue"] { background: rgba(10, 132, 255, 0.95) !important; }
-            .chmr-sticky[data-color="pink"] { background: rgba(255, 45, 85, 0.95) !important; }
-            html.chmr-placing, html.chmr-placing * { cursor: crosshair !important; }
+            .chmr-sticky { display: inline-block; position: relative; width: 1.2em; height: 1.2em; margin: 0 0.15em;
+              vertical-align: -0.2em; border-radius: 0.2em; cursor: pointer; text-indent: 0; box-sizing: border-box;
+              background: rgb(255, 214, 10) !important; border: 0.04em solid rgba(0, 0, 0, 0.3);
+              box-shadow: 0 0.05em 0.15em rgba(0, 0, 0, 0.35); }
+            .chmr-sticky::after { content: ""; position: absolute; left: 20%; right: 20%; top: 23%; bottom: 25%;
+              --ink: linear-gradient(rgba(0, 0, 0, 0.55), rgba(0, 0, 0, 0.55));
+              background: var(--ink) 0 0 / 100% 0.075em no-repeat, var(--ink) 0 33.3% / 100% 0.075em no-repeat,
+                var(--ink) 0 66.6% / 100% 0.075em no-repeat, var(--ink) 0 100% / 60% 0.075em no-repeat; }
+            .chmr-sticky[data-color="green"] { background: rgb(52, 199, 89) !important; }
+            .chmr-sticky[data-color="blue"] { background: rgb(10, 132, 255) !important; }
+            .chmr-sticky[data-color="pink"] { background: rgb(255, 45, 85) !important; }
+            html.chmr-placing, html.chmr-placing * { cursor: \(StickyArt.cursorCSS) !important; }
             """
     }
 }
